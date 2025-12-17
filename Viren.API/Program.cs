@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using System.Net;
 using System.Text;
 using Viren.API.Services;
+using Viren.Repositories;
+using Viren.Repositories.Domains;
 using Viren.Repositories.Utils;
 using Viren.Services.Configs;
 using IPNetwork = Microsoft.AspNetCore.HttpOverrides.IPNetwork;
@@ -25,8 +27,13 @@ public class Program
 
         builder.Services.Configure<PayOsSetings>(builder.Configuration.GetSection("PayOS"));
 
-        
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlServer(
+                builder.Configuration.GetConnectionString("DefaultConnection")));
 
+        builder.Services.AddIdentity<User, IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddDefaultTokenProviders();
 
         //builder.Services.AddSingleton(sp =>
         //{

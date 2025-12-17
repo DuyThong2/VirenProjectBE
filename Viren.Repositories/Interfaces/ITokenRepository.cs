@@ -9,7 +9,7 @@ namespace Viren.Repositories.Interfaces
 {
     public interface ITokenRepository
     {
-        (string, int) GenerateJwtToken(ApplicationUser user, string role);
+        (string, int) GenerateJwtToken(User user, string role);
 
     }
 }

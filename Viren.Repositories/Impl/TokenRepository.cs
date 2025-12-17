@@ -21,7 +21,7 @@ namespace Viren.Repositories.Impl
             _configuration = configuration;
         }
 
-        public (string, int) GenerateJwtToken(ApplicationUser user, string role)
+        public (string, int) GenerateJwtToken(User user, string role)
         {
             var claims = new List<Claim>()
         {
