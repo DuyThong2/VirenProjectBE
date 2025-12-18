@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Viren.Repositories.Common;
 
 namespace Viren.Repositories.Domains
 {
-    public class ProductSale
+    public class ProductSale : IBaseEntity
     {
         public Guid ProductId { get; set; }
         public Product Product { get; set; } = null!;

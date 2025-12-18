@@ -7,9 +7,8 @@ using Viren.Repositories.Common;
 
 namespace Viren.Repositories.Domains
 {
-    public class OrderItem
+    public class OrderItem : BaseEntity<Guid>
     {
-        public Guid Id { get; set; }
         public Guid OrderId { get; set; }
         public Guid ProductDetailId { get; set; }
         public int Quantity { get; set; }

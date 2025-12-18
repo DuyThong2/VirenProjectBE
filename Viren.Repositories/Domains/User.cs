@@ -11,13 +11,17 @@ namespace Viren.Repositories.Domains
     using Microsoft.AspNetCore.Identity;
     using Viren.Repositories.Enums;
 
-    public class User : IdentityUser<Guid>
+    public class User : IdentityUser<Guid>, IBaseEntity
     {
         public string Name { get; set; } = null!;
         public bool Gender { get; set; }
         public DateTime? Birthdate { get; set; }
         public decimal? Height { get; set; }
         public decimal? Weight { get; set; }
+        
+        public string? FirstName { get; set; } = null;
+        public string? LastName { get; set; } = null;
+        public string? Address { get; set; } = null;
         public CommonStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
 

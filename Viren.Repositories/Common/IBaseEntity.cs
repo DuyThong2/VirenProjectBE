@@ -2,5 +2,4 @@
 
 public interface IBaseEntity
 {
-    bool Status { get; set; }
 }

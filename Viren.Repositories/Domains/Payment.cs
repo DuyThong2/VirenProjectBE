@@ -8,9 +8,8 @@ using Viren.Repositories.Enums;
 
 namespace Viren.Repositories.Domains
 {
-    public class Payment
+    public class Payment : BaseEntity<Guid>
     {
-        public Guid Id { get; set; }
         public Guid OrderId { get; set; }
         public string PaymentType { get; set; } = null!;
         public decimal Amount { get; set; }

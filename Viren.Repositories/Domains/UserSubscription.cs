@@ -8,9 +8,8 @@ using Viren.Repositories.Enums;
 
 namespace Viren.Repositories.Domains
 {
-    public class UserSubscription
+    public class UserSubscription : BaseEntity<Guid>
     {
-        public Guid Id { get; set; }
 
         public Guid UserId { get; set; }
         public Guid SubscriptionPlanId { get; set; }

@@ -11,7 +11,7 @@ using Viren.Repositories.Domains;
 namespace Viren.Repositories
 {
     public class AppDbContext
-    : IdentityDbContext<User, IdentityRole<Guid>, Guid>
+    : IdentityDbContext<User, IdentityRole<Guid>, Guid>, IAppDbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -40,10 +40,8 @@ namespace Viren.Repositories
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            // ⚠️ BẮT BUỘC với Identity
             base.OnModelCreating(builder);
 
-            // Áp dụng toàn bộ IEntityTypeConfiguration<T>
             builder.ApplyConfigurationsFromAssembly(
                 typeof(AppDbContext).Assembly
             );
