@@ -7,7 +7,7 @@ using Viren.Repositories.Common;
 
 namespace Viren.Repositories.Domains
 {
-    public class ProductSale : IBaseEntity
+    public class ProductSale
     {
         public Guid ProductId { get; set; }
         public Product Product { get; set; } = null!;

@@ -529,8 +529,10 @@ namespace Viren.Repositories.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTimeOffset?>("BirthDate")
-                        .HasColumnType("datetimeoffset");
+                    b.Property<string>("AvatarImg")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar")
+                        .HasColumnName("avatarImg");
 
                     b.Property<DateTime?>("Birthdate")
                         .HasColumnType("datetime2")

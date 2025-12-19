@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace LexiMon.Service.ApiResponse;
+namespace Viren.Services.ApiResponse;
 
 public class ResponseData<T> : ServiceResponse
 {

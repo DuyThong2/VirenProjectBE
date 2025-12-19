@@ -19,7 +19,7 @@ public class UserController
         
     }
 
-    [Authorize] // chỉ cần có token
+    [Authorize] 
     [HttpGet("whoami")]
     public IResult WhoAmI()
     {
@@ -31,51 +31,65 @@ public class UserController
         });
     }
     
+
     
-    // ===== Test Admin only =====
-    [Authorize(Policy = "AdminOnly")]
-    [HttpGet("test-admin")]
-    public IResult TestAdmin()
-    {
-        return TypedResults.Ok("ADMIN_OK");
-    }
-
-    // ===== Test User only =====
-    [Authorize(Policy = "UserOnly")]
-    [HttpGet("test-user")]
-    public IResult TestUser()
-    {
-        return TypedResults.Ok("USER_OK");
-    }
-
-    // ===== Test Admin OR User =====
-    [Authorize(Policy = "AdminOrUser")]
-    [HttpGet("test-admin-user")]
-    public IResult TestAdminOrUser()
-    {
-        return TypedResults.Ok("ADMIN_OR_USER_OK");
-    }
-
-    // ===== Existing endpoints =====
     [Authorize(Policy = "AdminOrUser")]
     [HttpGet("profile")]
-    public async Task<IResult> GetProfileAsync(CancellationToken cancellationToken = default)
+    public async Task<IResult> GetProfileAsync(
+        [FromQuery] Guid? userId,
+        CancellationToken cancellationToken = default)
     {
-        var serviceResponse = await _userService.GetUserByIdAsync(cancellationToken);
+        var serviceResponse = await _userService.GetUserByIdAsync(
+            userId,
+            cancellationToken
+        );
+
         return serviceResponse.Succeeded
             ? TypedResults.Ok(serviceResponse)
             : TypedResults.Unauthorized();
     }
 
+
     [Authorize(Policy = "AdminOrUser")]
     [HttpPut("profile")]
     public async Task<IResult> UpdateProfileAsync(
+        [FromQuery] Guid? userId,
         [FromBody] UserRequestDto requestBody,
         CancellationToken cancellationToken = default)
     {
-        var serviceResponse = await _userService.UpdateAsync(requestBody, cancellationToken);
+        var serviceResponse = await _userService.UpdateAsync(
+            userId,
+            requestBody,
+            cancellationToken
+        );
+
         return serviceResponse.Succeeded
             ? TypedResults.Ok(serviceResponse)
             : TypedResults.BadRequest(serviceResponse);
     }
+    
+    [Authorize(Policy = "AdminOnly")]
+    [HttpGet]
+    public async Task<IResult> GetUsersAsync(
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (page <= 0) page = 1;
+        if (pageSize <= 0) pageSize = 10;
+        if (pageSize > 100) pageSize = 100; 
+
+        var request = new GetUsersPaginatedRequest
+        {
+            Search = search,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        var result = await _userService.GetUsersAsync(request, cancellationToken);
+
+        return TypedResults.Ok(result);
+    }
+
 }

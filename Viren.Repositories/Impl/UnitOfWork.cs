@@ -16,7 +16,7 @@ public class UnitOfWork : IUnitOfWork
     }
 
     public IGenericRepository<T, TId> GetRepository<T, TId>()
-        where T : BaseEntity<TId>
+        where T : class, IBaseEntity<TId>
         where TId : notnull
     {
         var typeName = typeof(T).Name;

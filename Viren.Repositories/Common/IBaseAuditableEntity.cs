@@ -1,6 +1,6 @@
 ﻿namespace Viren.Repositories.Common;
 
-public interface IBaseAuditableEntity : IBaseEntity
+public interface IBaseAuditableEntity<TId> : IBaseEntity<TId>
 {
     DateTimeOffset CreatedAt { get; set; }
     DateTimeOffset UpdatedAt { get; set; }

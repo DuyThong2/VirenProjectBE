@@ -4,7 +4,8 @@ using System.Linq.Expressions;
 namespace Viren.Repositories.Interfaces;
 
 
-public interface IGenericRepository<T, TId> where T : BaseEntity<TId>
+public interface IGenericRepository<T, TId>
+    where T : class, IBaseEntity<TId>
 {
     IQueryable<T> Query(bool asNoTracking = true);
 

@@ -6,7 +6,7 @@ using Viren.Repositories.Interfaces;
 
 namespace Viren.Repositories.Impl;
 public class GenericRepository<T, TId> : IGenericRepository<T, TId>
-    where T : BaseEntity<TId>
+    where T : class, IBaseEntity<TId>
     where TId : notnull
 {
     private readonly AppDbContext _dbContext;

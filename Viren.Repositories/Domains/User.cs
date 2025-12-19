@@ -11,7 +11,7 @@ namespace Viren.Repositories.Domains
     using Microsoft.AspNetCore.Identity;
     using Viren.Repositories.Enums;
 
-    public class User : IdentityUser<Guid>, IBaseEntity
+    public class User : IdentityUser<Guid>, IBaseEntity<Guid>
     {
         public string Name { get; set; } = null!;
         public bool Gender { get; set; }
@@ -24,6 +24,8 @@ namespace Viren.Repositories.Domains
         public string? Address { get; set; } = null;
         public CommonStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        public string? AvatarImg { get; set; } = null;
 
         // Navigation
         public ICollection<Order> Orders { get; set; } = new List<Order>();

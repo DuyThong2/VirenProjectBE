@@ -12,8 +12,8 @@ using Viren.Repositories;
 namespace Viren.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251218082517_updateUser")]
-    partial class updateUser
+    [Migration("20251219090819_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -532,8 +532,10 @@ namespace Viren.Repositories.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTimeOffset?>("BirthDate")
-                        .HasColumnType("datetimeoffset");
+                    b.Property<string>("AvatarImg")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar")
+                        .HasColumnName("avatarImg");
 
                     b.Property<DateTime?>("Birthdate")
                         .HasColumnType("datetime2")

@@ -1,6 +1,6 @@
 ﻿namespace Viren.Repositories.Common;
 
-public class BaseEntity<TId> : IBaseEntity
+public abstract class BaseEntity<TId> : IBaseEntity<TId>
 {
     public TId Id { get; set; } = default!;
 }

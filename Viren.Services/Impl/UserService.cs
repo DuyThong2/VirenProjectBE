@@ -1,10 +1,11 @@
-﻿using LexiMon.Service.ApiResponse;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Viren.Repositories.Domains;
 using Viren.Repositories.Enums;
 using Viren.Repositories.Interfaces;
 using Viren.Repositories.Utils;
+using Viren.Services.ApiResponse;
 using Viren.Services.Dtos.Requests;
 using Viren.Services.Dtos.Response;
 using Viren.Services.Interfaces;
@@ -30,10 +31,21 @@ public class UserService : IUserService
 
     public async Task<ServiceResponse> LoginAsync(LoginRequestDto requestBody)
     {
-        var user = await _userManager.FindByEmailAsync(requestBody.Email);
+        User? user;
+
+        // Detect email vs username
+        if (requestBody.EmailOrUsername.Contains("@"))
+        {
+            user = await _userManager.FindByEmailAsync(requestBody.EmailOrUsername);
+        }
+        else
+        {
+            user = await _userManager.FindByNameAsync(requestBody.EmailOrUsername);
+        }
+        
         if (user == null || !await _userManager.CheckPasswordAsync(user, requestBody.Password))
         {
-            _logger.LogWarning("Failed login attempt for email: {Email}", requestBody.Email);
+            _logger.LogWarning("Failed login attempt for email: {Email}", requestBody.EmailOrUsername);
             return new ServiceResponse()
             {
                 Succeeded = false,
@@ -43,7 +55,7 @@ public class UserService : IUserService
 
         if (!(user.Status == CommonStatus.Active))
         {
-            _logger.LogWarning("Disabled account login attempt for email: {Email}", requestBody.Email);
+            _logger.LogWarning("Disabled account login attempt for email: {Email}", requestBody.EmailOrUsername);
             return new ServiceResponse()
             {
                 Succeeded = false,
@@ -60,7 +72,7 @@ public class UserService : IUserService
             ExpiredIn = expire,
         };
 
-        _logger.LogInformation("User {Email} logged in successfully with role {Role}", requestBody.Email, role);
+        _logger.LogInformation("User {Email} logged in successfully with role {Role}", requestBody.EmailOrUsername, role);
         return new ResponseData<LoginResponseDto>()
         {
             Succeeded = true,
@@ -122,23 +134,27 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<ServiceResponse> GetUserByIdAsync(CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> GetUserByIdAsync(
+        Guid? userId = null,
+        CancellationToken cancellationToken = default)
     {
-        var user = await _userManager.FindByIdAsync(_user.Id!);
+        var resolvedUserId = ResolveUserId(userId);
 
+        var user = await _userManager.FindByIdAsync(resolvedUserId);
         if (user == null)
         {
-            _logger.LogError("User not found with ID: {UserId}", _user.Id);
-            return new ServiceResponse()
+            _logger.LogError("User not found with ID: {UserId}", resolvedUserId);
+            return new ServiceResponse
             {
                 Succeeded = false,
-                Message = "Người dùng không tồn tại!",
+                Message = "Người dùng không tồn tại!"
             };
         }
 
-        var role = (await _userManager.GetRolesAsync(user))[0];
+        var roles = await _userManager.GetRolesAsync(user);
+        var role = roles.FirstOrDefault();
 
-        var response = new UserResponseDto()
+        var response = new UserResponseDto
         {
             Id = user.Id,
             Email = user.Email!,
@@ -146,12 +162,12 @@ public class UserService : IUserService
             FirstName = user.FirstName,
             LastName = user.LastName,
             Address = user.Address,
-            BirthDate = user.Birthdate,
-            
+            BirthDate = user.Birthdate
         };
 
-        _logger.LogInformation("User information retrieved successfully for ID: {UserId}", _user.Id);
-        return new ResponseData<UserResponseDto>()
+        _logger.LogInformation("User information retrieved successfully for ID: {UserId}", resolvedUserId);
+
+        return new ResponseData<UserResponseDto>
         {
             Succeeded = true,
             Message = "Lấy thông tin người dùng thành công!",
@@ -159,18 +175,22 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<ServiceResponse> UpdateAsync(UserRequestDto requestBody,
+
+    public async Task<ServiceResponse> UpdateAsync(
+        Guid? userId,
+        UserRequestDto requestBody,
         CancellationToken cancellationToken = default)
     {
-        var user = await _userManager.FindByIdAsync(_user.Id!);
+        var resolvedUserId = ResolveUserId(userId);
 
+        var user = await _userManager.FindByIdAsync(resolvedUserId);
         if (user == null)
         {
-            _logger.LogError("User not found with ID: {UserId}", _user.Id);
-            return new ServiceResponse()
+            _logger.LogError("User not found with ID: {UserId}", resolvedUserId);
+            return new ServiceResponse
             {
                 Succeeded = false,
-                Message = "Người dùng không tồn tại!",
+                Message = "Người dùng không tồn tại!"
             };
         }
 
@@ -178,24 +198,91 @@ public class UserService : IUserService
         user.LastName = requestBody.LastName;
         user.Address = requestBody.Address;
         user.Birthdate = requestBody.BirthDate;
+
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
-            _logger.LogError("Failed to update user with ID: {UserId}", _user.Id);
-            return new ServiceResponse()
+            _logger.LogError("Failed to update user with ID: {UserId}", resolvedUserId);
+            return new ServiceResponse
             {
                 Succeeded = false,
-                Message = "Cập nhật thông tin người dùng thất bại!",
+                Message = "Cập nhật thông tin người dùng thất bại!"
             };
         }
 
-        _logger.LogInformation("User information updated successfully for ID: {UserId}", _user.Id);
-        return new ServiceResponse()
+        _logger.LogInformation("User information updated successfully for ID: {UserId}", resolvedUserId);
+
+        return new ServiceResponse
         {
             Succeeded = true,
-            Message = "Cập nhật thông tin người dùng thành công!",
+            Message = "Cập nhật thông tin người dùng thành công!"
         };
     }
 
-   
+    public async Task<PaginatedResponse<UserWithSubscriptionResponseDto>> GetUsersAsync(
+        GetUsersPaginatedRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var userRepo = _unitOfWork.GetRepository<User, Guid>();
+
+        IQueryable<User> query = userRepo.Query().AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var keyword = request.Search.Trim();
+            query = query.Where(u =>
+                u.Name.Contains(keyword) ||
+                u.Email!.Contains(keyword) ||
+                (u.PhoneNumber != null && u.PhoneNumber.Contains(keyword))
+            );
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var users = await query
+            .OrderByDescending(u => u.CreatedAt)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(u => new UserWithSubscriptionResponseDto
+            {
+                ImgUrl = u.AvatarImg,
+                Id = u.Id,
+                Email = u.Email!,
+                Name = u.Name,
+                PhoneNumber = u.PhoneNumber,
+                CreatedAt = u.CreatedAt,
+                SubscriptionName = u.UserSubscriptions
+                    .Where(us => us.Status == CommonStatus.Active)
+                    .OrderByDescending(us => us.EndDate)
+                    .Select(us => us.SubscriptionPlan.Name)
+                    .FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
+
+
+        return new PaginatedResponse<UserWithSubscriptionResponseDto>
+        {
+            Succeeded = true,
+            Message = "Lấy danh sách người dùng thành công",
+            Data = users,
+            PageSize = request.PageSize,
+            TotalItems = totalCount
+        };
+    }
+
+
+    private string ResolveUserId(Guid? userId)
+    {
+        if (userId.HasValue)
+            return userId.Value.ToString();
+
+        if (!string.IsNullOrEmpty(_user.Id))
+            return _user.Id;
+
+        throw new UnauthorizedAccessException("User is not authenticated");
+    }
+    
+    
+    
+
 }

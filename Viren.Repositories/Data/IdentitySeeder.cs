@@ -40,7 +40,7 @@ public class IdentitySeeder
             var admin = new User
             {
                 Id = Guid.NewGuid(),
-                UserName = "admin@viren.com",
+                UserName = "admin123",
                 Email = "admin@viren.com",
                 NormalizedUserName = "ADMIN@VIREN.COM",
                 NormalizedEmail = "ADMIN@VIREN.COM",
@@ -64,7 +64,7 @@ public class IdentitySeeder
             var user = new User
             {
                 Id = Guid.NewGuid(),
-                UserName = "user@viren.com",
+                UserName = "user123",
                 Email = "user@viren.com",
                 NormalizedUserName = "USER@VIREN.COM",
                 NormalizedEmail = "USER@VIREN.COM",

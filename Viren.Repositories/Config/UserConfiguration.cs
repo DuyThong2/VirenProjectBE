@@ -46,7 +46,13 @@ namespace Viren.Repositories.Config
             builder.Property(x => x.CreatedAt)
                    .HasColumnName("createdAt")
                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
-           
+
+            builder.Property(x => x.AvatarImg)
+                   .HasColumnName("avatarImg")
+                   .HasColumnType("varchar")
+                   .HasMaxLength(200);
+
+
         }
     }
 
