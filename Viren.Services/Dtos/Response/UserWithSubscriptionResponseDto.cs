@@ -6,8 +6,10 @@ public class UserWithSubscriptionResponseDto
     public string Email { get; set; } = null!;
     public string Name { get; set; } = null!;
     public string? PhoneNumber { get; set; }
-    public string? SubscriptionName { get; set; }
+    public List<string> ? SubscriptionName { get; set; }
     
     public string ? ImgUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    
+    public string ? status { get; set; }
 }

@@ -1,4 +1,5 @@
-﻿using Viren.Services.ApiResponse;
+﻿using Microsoft.AspNetCore.Http;
+using Viren.Services.ApiResponse;
 using Viren.Services.Dtos.Requests;
 using Viren.Services.Dtos.Response;
 
@@ -14,4 +15,11 @@ public interface IUserService
     Task<PaginatedResponse<UserWithSubscriptionResponseDto>> GetUsersAsync(
         GetUsersPaginatedRequest request,
         CancellationToken cancellationToken = default);
+    
+    Task<ReconcileResponseDto> ReconcileUserFilesAsync(
+        Guid userId,
+        string? keepJson,
+        List<IFormFile>? files,
+        string? meta,
+        CancellationToken ct);
 }

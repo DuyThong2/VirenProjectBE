@@ -23,10 +23,13 @@
 		</PackageReference>
 		<PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+		<PackageReference Include="AWSSDK.S3" Version="4.0.7.7" />
 	</ItemGroup>
 
 
 	<ItemGroup>
 	  <Folder Include="Migrations\" />
+	  <Folder Include="Storage\" />
+	  <Folder Include="Storage\Extension\" />
 	</ItemGroup>
 </Project>

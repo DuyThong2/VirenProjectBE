@@ -49,8 +49,7 @@ namespace Viren.Repositories.Config
 
             builder.Property(x => x.AvatarImg)
                    .HasColumnName("avatarImg")
-                   .HasColumnType("varchar")
-                   .HasMaxLength(200);
+                   .HasColumnType("nvarchar(max)");
 
 
         }

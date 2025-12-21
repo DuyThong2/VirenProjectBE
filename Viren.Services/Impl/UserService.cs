@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Viren.Repositories.Domains;
 using Viren.Repositories.Enums;
 using Viren.Repositories.Interfaces;
+using Viren.Repositories.Storage.Bucket;
 using Viren.Repositories.Utils;
 using Viren.Services.ApiResponse;
 using Viren.Services.Dtos.Requests;
@@ -19,14 +21,17 @@ public class UserService : IUserService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUser _user;
     private readonly ILogger<UserService> _logger;
+    private readonly IS3Storage _storage;
 
-    public UserService(UserManager<User> userManager, ITokenRepository tokenRepository, IUnitOfWork unitOfWork, ILogger<UserService> logger, IUser user)
+
+    public UserService(UserManager<User> userManager, ITokenRepository tokenRepository, IUnitOfWork unitOfWork, ILogger<UserService> logger, IUser user, IS3Storage storage)
     {
         _userManager = userManager;
         _tokenRepository = tokenRepository;
         _logger = logger;
         _user = user;
         _unitOfWork = unitOfWork;
+        _storage = storage;
     }
 
     public async Task<ServiceResponse> LoginAsync(LoginRequestDto requestBody)
@@ -140,7 +145,7 @@ public class UserService : IUserService
     {
         var resolvedUserId = ResolveUserId(userId);
 
-        var user = await _userManager.FindByIdAsync(resolvedUserId);
+        var user = await _userManager.FindByIdAsync(resolvedUserId.ToString());
         if (user == null)
         {
             _logger.LogError("User not found with ID: {UserId}", resolvedUserId);
@@ -152,17 +157,30 @@ public class UserService : IUserService
         }
 
         var roles = await _userManager.GetRolesAsync(user);
-        var role = roles.FirstOrDefault();
+        var role = roles.FirstOrDefault() ?? "User";
 
         var response = new UserResponseDto
         {
             Id = user.Id,
             Email = user.Email!,
+            UserName = user.UserName,          // ✅
             Role = role,
+
+            Name = user.Name,                  // ✅
+            PhoneNumber = user.PhoneNumber,    // ✅
+
             FirstName = user.FirstName,
             LastName = user.LastName,
             Address = user.Address,
-            BirthDate = user.Birthdate
+
+            Gender = user.Gender,
+            Height = user.Height,
+            Weight = user.Weight,
+
+            Status = (int)user.Status,         // hoặc user.Status
+            AvatarImg = user.AvatarImg,
+            BirthDate = user.Birthdate,
+            CreatedAt = user.CreatedAt
         };
 
         _logger.LogInformation("User information retrieved successfully for ID: {UserId}", resolvedUserId);
@@ -176,48 +194,80 @@ public class UserService : IUserService
     }
 
 
+
     public async Task<ServiceResponse> UpdateAsync(
-        Guid? userId,
-        UserRequestDto requestBody,
-        CancellationToken cancellationToken = default)
+    Guid? userId,
+    UserRequestDto requestBody,
+    CancellationToken cancellationToken = default)
+{
+    var resolvedUserId = ResolveUserId(userId);
+
+    var user = await _userManager.FindByIdAsync(resolvedUserId.ToString());
+    if (user == null)
     {
-        var resolvedUserId = ResolveUserId(userId);
-
-        var user = await _userManager.FindByIdAsync(resolvedUserId);
-        if (user == null)
-        {
-            _logger.LogError("User not found with ID: {UserId}", resolvedUserId);
-            return new ServiceResponse
-            {
-                Succeeded = false,
-                Message = "Người dùng không tồn tại!"
-            };
-        }
-
-        user.FirstName = requestBody.FirstName;
-        user.LastName = requestBody.LastName;
-        user.Address = requestBody.Address;
-        user.Birthdate = requestBody.BirthDate;
-
-        var result = await _userManager.UpdateAsync(user);
-        if (!result.Succeeded)
-        {
-            _logger.LogError("Failed to update user with ID: {UserId}", resolvedUserId);
-            return new ServiceResponse
-            {
-                Succeeded = false,
-                Message = "Cập nhật thông tin người dùng thất bại!"
-            };
-        }
-
-        _logger.LogInformation("User information updated successfully for ID: {UserId}", resolvedUserId);
-
         return new ServiceResponse
         {
-            Succeeded = true,
-            Message = "Cập nhật thông tin người dùng thành công!"
+            Succeeded = false,
+            Message = "Người dùng không tồn tại!"
         };
     }
+
+    // ✅ update các field cơ bản
+    user.Name = requestBody.Name?.Trim() ?? user.Name;
+    user.PhoneNumber = requestBody.PhoneNumber?.Trim();
+    user.Birthdate = requestBody.BirthDate;
+    user.Height = requestBody.Height;
+    user.Weight = requestBody.Weight;
+
+    user.FirstName = requestBody.FirstName?.Trim();
+    user.LastName = requestBody.LastName?.Trim();
+    user.Address = requestBody.Address?.Trim();
+
+    user.Status = (CommonStatus)requestBody.Status; // nếu request.Status là int
+
+    // ✅ IMPORTANT: đồng bộ Name -> UserName để login
+    if (!string.IsNullOrWhiteSpace(requestBody.Name))
+    {
+        var newUserName = requestBody.Name.Trim();
+
+        // nếu muốn "slugify" cho username (không dấu, không space), bạn có thể thay ở đây
+        // newUserName = Slugify(newUserName);
+
+        // check trùng username với user khác
+        var existed = await _userManager.FindByNameAsync(newUserName);
+        if (existed != null && existed.Id != user.Id)
+        {
+            return new ServiceResponse
+            {
+                Succeeded = false,
+                Message = "Tên đăng nhập (UserName) đã tồn tại. Vui lòng chọn tên khác."
+            };
+        }
+
+        user.UserName = newUserName;
+        user.NormalizedUserName = _userManager.NormalizeName(newUserName);
+    }
+
+    // update qua UserManager để Identity set stamp đúng
+    var result = await _userManager.UpdateAsync(user);
+    if (!result.Succeeded)
+    {
+        var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+        return new ServiceResponse
+        {
+            Succeeded = false,
+            Message = $"Cập nhật thất bại: {errors}"
+        };
+    }
+
+    return new ServiceResponse
+    {
+        Succeeded = true,
+        Message = "Cập nhật người dùng thành công!"
+    };
+}
+
+
 
     public async Task<PaginatedResponse<UserWithSubscriptionResponseDto>> GetUsersAsync(
         GetUsersPaginatedRequest request,
@@ -251,11 +301,12 @@ public class UserService : IUserService
                 Name = u.Name,
                 PhoneNumber = u.PhoneNumber,
                 CreatedAt = u.CreatedAt,
+                status = u.Status.ToString(),
                 SubscriptionName = u.UserSubscriptions
                     .Where(us => us.Status == CommonStatus.Active)
                     .OrderByDescending(us => us.EndDate)
                     .Select(us => us.SubscriptionPlan.Name)
-                    .FirstOrDefault()
+                    .ToList()
             })
             .ToListAsync(cancellationToken);
 
@@ -280,6 +331,66 @@ public class UserService : IUserService
             return _user.Id;
 
         throw new UnauthorizedAccessException("User is not authenticated");
+    }
+    
+     public async Task<ReconcileResponseDto> ReconcileUserFilesAsync(
+        Guid userId,
+        string? keepJson,
+        List<IFormFile>? files,
+        string? meta,
+        CancellationToken ct)
+    {
+        // 0) load user
+        var resolvedUserId = ResolveUserId(userId);
+
+        var user = await _userManager.FindByIdAsync(resolvedUserId);      
+        if (user is null)
+            throw new KeyNotFoundException($"User {userId} not found.");
+
+        // 1) giữ lại từ KeepJson
+        var keep = FileRefUtils.ParseAny(keepJson);
+
+        // 2) upload file mới (nếu có)
+        var uploaded = (files is { Count: > 0 })
+            ? await _storage.UploadAsync(files!, ct)
+            : Array.Empty<UploadedFileDto>();
+
+        List<FileRefDto> desired;
+        if (uploaded.Count == 0)
+        {
+            desired = FileRefUtils.Distinct(keep);
+        }
+        else
+        {
+            var newRefs = FileRefUtils.FromUploaded(uploaded);
+            desired = FileRefUtils.Distinct(keep.Concat(newRefs));
+        }
+
+       
+        if ((keep == null || keep.Count == 0) && uploaded.Count == 0)
+        {
+            user.AvatarImg = null;
+        }
+        else
+        {
+            desired = desired
+                .Where(d =>
+                    !string.IsNullOrWhiteSpace(d.Key) ||
+                    (!string.IsNullOrWhiteSpace(d.Url) && d.Url != "[]"))
+                .ToList();
+
+            user.AvatarImg = desired.Count == 0 ? null : FileRefUtils.ToJson(desired);
+        }
+
+        await _userManager.UpdateAsync(user);
+
+        return new ReconcileResponseDto
+        {
+            
+            Desired = desired,
+            UploadedFiles = uploaded.ToList(),
+            Meta = meta
+        };
     }
     
     

@@ -12,6 +12,7 @@ public class Program
             .AddApplicationConfiguration()
             .AddDatabase()
             .AddIdentityAndJwt()
+            .AddAwsS3Storage()
             .AddApplicationServices()
             .AddSwaggerAndCors();
 
