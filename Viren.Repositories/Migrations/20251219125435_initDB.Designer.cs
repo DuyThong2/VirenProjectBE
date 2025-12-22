@@ -12,8 +12,8 @@ using Viren.Repositories;
 namespace Viren.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251219090819_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251219125435_initDB")]
+    partial class initDB
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -19,7 +19,7 @@ public static class ServiceCollectionExtensions
         builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
         builder.Services.AddScoped<ITokenRepository, TokenRepository>();
         builder.Services.AddScoped<IUserService, UserService>();
-
+        builder.Services.AddScoped<IProductService, ProductService>();
         builder.Services.AddControllers();
         builder.Services.AddRouting(o => o.LowercaseUrls = true);
 
