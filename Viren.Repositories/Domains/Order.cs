@@ -20,7 +20,12 @@ namespace Viren.Repositories.Domains
 
         public User User { get; set; } = null!;
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+        /*
         public ICollection<Payment> Payments { get; set; } = new List<Payment>();
+    */
+        
+        public Payment? Payment { get; set; }
+
     }
 
 }

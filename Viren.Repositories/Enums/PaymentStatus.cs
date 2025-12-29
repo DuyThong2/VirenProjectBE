@@ -10,6 +10,7 @@ namespace Viren.Repositories.Enums
     {
         Pending,
         Success,
-        Failed
+        Failed,
+        Cancelled
     }
 }
