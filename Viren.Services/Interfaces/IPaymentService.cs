@@ -11,5 +11,12 @@ namespace Viren.Services.Interfaces;
         Task<ServiceResponse> CreatePaymentLinkByAmountAsync(
             CreatePaymentByAmountRequest requestBody,
             CancellationToken ct = default);
+        
+        Task ProcessPayOsWebhookToPaymentAsync(WebhookData data, CancellationToken ct = default);
+        
+        Task<ServiceResponse> CreatePaymentLinkByOrderAsync(PaymentRequest requestBody, CancellationToken ct = default);
+
+        
+
     }
 
