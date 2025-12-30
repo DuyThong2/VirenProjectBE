@@ -16,21 +16,60 @@ namespace Viren.API.Controllers
 
         [HttpGet]
         public async Task<IResult> GetProductsAsync(
-            [FromQuery] ProductRequestDto request,
+            [FromQuery] string? search,
+            [FromQuery] string? sortBy = "CreatedAt",
+            [FromQuery] string? sortDirection = "Desc",
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
             CancellationToken cancellationToken = default)
         {
+            if (page <= 0) page = 1;
+            if (pageSize <= 0) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
+            var request = new ProductRequestDto
+            {
+                Search = search,
+                SortBy = sortBy ?? "CreatedAt",
+                SortDirection = sortDirection ?? "Desc",
+                Page = page,
+                PageSize = pageSize
+            };  
+
             var serviceResponse = await _productService.GetProductsAsync(request, cancellationToken);
-            return TypedResults.Ok(serviceResponse);
+            return serviceResponse.Succeeded
+                    ? TypedResults.Ok(serviceResponse)
+                    : TypedResults.BadRequest(serviceResponse);
         }
 
         [HttpGet]
-        [Route("by-category")]
+        [Route("by-category/{categoryId:guid}")]
         public async Task<IResult> GetProductsByCateAsync(
-            [FromQuery] ProductRequestDto request,
+            [FromRoute] Guid categoryId,
+            [FromQuery] string? search,
+            [FromQuery] string? sortBy = "CreatedAt",
+            [FromQuery] string? sortDirection = "Desc",
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            
             CancellationToken cancellationToken = default)
         {
+            if (page <= 0) page = 1;
+            if (pageSize <= 0) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+            var request = new ProductRequestDto
+            {
+                Search = search,
+                SortBy = sortBy ?? "CreatedAt",
+                SortDirection = sortDirection ?? "Desc",
+                CategoryId = categoryId,
+                Page = page,
+                PageSize = pageSize
+            };
             var serviceResponse = await _productService.GetProductsByCateAsync(request, cancellationToken);
-            return TypedResults.Ok(serviceResponse);
+            return serviceResponse.Succeeded
+                    ? TypedResults.Ok(serviceResponse)
+                    : TypedResults.BadRequest(serviceResponse);
         }
 
         [HttpGet("{productId}")]

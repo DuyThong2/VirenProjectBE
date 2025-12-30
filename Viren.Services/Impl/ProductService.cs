@@ -78,7 +78,9 @@ namespace Viren.Services.Impl
         {
             var productRepository = _unitOfWork.GetRepository<Product, Guid>();
 
-            IQueryable<Product> query = productRepository.Query().AsNoTracking();
+            IQueryable<Product> query = productRepository
+                .Query()
+                .AsNoTracking();
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(request.Search))
@@ -97,8 +99,8 @@ namespace Viren.Services.Impl
                 {
                     "name" => ascending ? query.OrderBy(p => p.Name) : query.OrderByDescending(p => p.Name),
                     "price" => ascending ? query.OrderBy(p => p.Price) : query.OrderByDescending(p => p.Price),
-                    "createdate" => ascending ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt),
-                    _ => query
+                    "createdat" => ascending ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt),
+                    _ => query.OrderByDescending(p => p.CreatedAt),
                 };
             }
 
@@ -166,7 +168,7 @@ namespace Viren.Services.Impl
                         ? query.OrderBy(p => p.Price)
                         : query.OrderByDescending(p => p.Price),
 
-                    "createdate" => ascending
+                    "createdat" => ascending
                         ? query.OrderBy(p => p.CreatedAt)
                         : query.OrderByDescending(p => p.CreatedAt),
 
