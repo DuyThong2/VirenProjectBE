@@ -11,15 +11,19 @@ namespace Viren.Repositories.Domains
     public class Payment : BaseEntity<Guid>
     {
         public Guid OrderId { get; set; }
-        public string PaymentType { get; set; } = null!;
+        public PaymentType PaymentType { get; set; }
         public decimal Amount { get; set; }
         public PaymentStatus Status { get; set; }
         public string? QrCodeUrl { get; set; }
         public string? TransactionCode { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? VerifiedAt { get; set; }
-
+        
+        public User?  User { get; set; }
+        public Guid? UserId { get; set; }
         public Order Order { get; set; } = null!;
+        
+        
     }
 
 }

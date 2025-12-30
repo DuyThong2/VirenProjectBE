@@ -23,9 +23,15 @@ namespace Viren.Repositories.Config
             b.Property(x => x.OrderId)
                 .HasColumnName("orderId");
 
+            /*b.Property(x => x.PaymentType)
+                .HasColumnName("paymentType")
+                .HasColumnType("nvarchar(50)");*/
+            
             b.Property(x => x.PaymentType)
                 .HasColumnName("paymentType")
-                .HasColumnType("nvarchar(50)");
+                .HasDefaultValue(PaymentType.Cod)
+                .HasConversion(pt => pt.ToString(), dbpt => (PaymentType)Enum.Parse(typeof(PaymentType), dbpt) );
+                
 
             b.Property(x => x.Amount)
                 .HasColumnName("amount")
@@ -50,12 +56,26 @@ namespace Viren.Repositories.Config
 
             b.Property(x => x.VerifiedAt)
                 .HasColumnName("verified_at");
+            
+            b.Property(x => x.UserId)
+                .HasColumnName("userId");
 
             // Relationships
-            b.HasOne(x => x.Order)
+            /*b.HasOne(x => x.Order)
                 .WithMany(x => x.Payments)
                 .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);*/
+
+            b.HasOne(x => x.Order)
+                .WithOne(o => o.Payment)
+                .HasForeignKey<Payment>(x => x.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            b.HasOne(x => x.User)
+                .WithMany(u => u.Payments)
+                .HasForeignKey(u => u.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
         }
     }
 

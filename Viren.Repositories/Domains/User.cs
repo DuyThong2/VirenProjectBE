@@ -31,6 +31,8 @@ namespace Viren.Repositories.Domains
         public ICollection<Order> Orders { get; set; } = new List<Order>();
         public ICollection<Wishlist> Wishlists { get; set; } = new List<Wishlist>();
         public ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
+
+        public ICollection<Payment> Payments { get; set; } = new List<Payment>();
     }
 
 }

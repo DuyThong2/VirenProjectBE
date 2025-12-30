@@ -104,6 +104,7 @@ public class UserService : IUserService
             Email = requestBody.Email,
             FirstName = requestBody.FirstName,
             LastName = requestBody.LastName,
+            Name = requestBody.Email
         };
 
         var result = await _userManager.CreateAsync(user, requestBody.Password);
@@ -116,7 +117,7 @@ public class UserService : IUserService
             };
         }
 
-        var addToRoleResult = await _userManager.AddToRoleAsync(user, role);
+        var addToRoleResult = await _userManager.AddToRoleAsync(user, "User");
         if (!addToRoleResult.Succeeded)
         {
             await _userManager.DeleteAsync(user);
@@ -177,7 +178,7 @@ public class UserService : IUserService
             Height = user.Height,
             Weight = user.Weight,
 
-            Status = (int)user.Status,         // hoặc user.Status
+            Status = (int) user.Status, // nếu request.Status là int
             AvatarImg = user.AvatarImg,
             BirthDate = user.Birthdate,
             CreatedAt = user.CreatedAt
@@ -212,19 +213,19 @@ public class UserService : IUserService
         };
     }
 
-    // ✅ update các field cơ bản
     user.Name = requestBody.Name?.Trim() ?? user.Name;
     user.PhoneNumber = requestBody.PhoneNumber?.Trim();
     user.Birthdate = requestBody.BirthDate;
     user.Height = requestBody.Height;
     user.Weight = requestBody.Weight;
+    user.Gender = requestBody.Gender.HasValue ? requestBody.Gender.Value : user.Gender;
 
     user.FirstName = requestBody.FirstName?.Trim();
     user.LastName = requestBody.LastName?.Trim();
     user.Address = requestBody.Address?.Trim();
-
-    user.Status = (CommonStatus)requestBody.Status; // nếu request.Status là int
-
+    Console.WriteLine("beyound value");
+    if (requestBody.Status.HasValue)
+        user.Status = requestBody.Status.Value;
     // ✅ IMPORTANT: đồng bộ Name -> UserName để login
     if (!string.IsNullOrWhiteSpace(requestBody.Name))
     {
@@ -295,6 +296,8 @@ public class UserService : IUserService
             .Take(request.PageSize)
             .Select(u => new UserWithSubscriptionResponseDto
             {
+                LastName =  u.LastName,
+                FirstName = u.FirstName,
                 ImgUrl = u.AvatarImg,
                 Id = u.Id,
                 Email = u.Email!,

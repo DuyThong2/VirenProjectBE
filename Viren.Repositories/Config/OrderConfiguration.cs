@@ -55,10 +55,10 @@ namespace Viren.Repositories.Config
                 .HasForeignKey(x => x.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            b.HasMany(x => x.Payments)
+            /*b.HasMany(x => x.Payments)
                 .WithOne(x => x.Order)
                 .HasForeignKey(x => x.OrderId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.SetNull);*/
 
         }
     }
