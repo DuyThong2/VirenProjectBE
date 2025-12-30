@@ -40,4 +40,17 @@ public class AuthsController
 
         return TypedResults.BadRequest(serviceResponse);
     }
+    
+    
+    [HttpPost("google")]
+    public async Task<IResult> GoogleLoginAsync([FromBody] GoogleLoginRequestDto requestBody)
+    {
+        var serviceResponse = await _userService.GoogleLoginAsync(requestBody);
+
+        if (serviceResponse.Succeeded)
+            return TypedResults.Ok(serviceResponse);
+
+        return TypedResults.Unauthorized();
+    }
+
 }

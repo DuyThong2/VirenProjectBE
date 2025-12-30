@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Google.Apis.Auth;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Viren.Repositories.Domains;
 using Viren.Repositories.Enums;
@@ -22,9 +24,18 @@ public class UserService : IUserService
     private readonly IUser _user;
     private readonly ILogger<UserService> _logger;
     private readonly IS3Storage _storage;
+    private readonly IConfiguration _configuration;
+    private const string DefaultGooglePassword = "Abc123456!";
 
 
-    public UserService(UserManager<User> userManager, ITokenRepository tokenRepository, IUnitOfWork unitOfWork, ILogger<UserService> logger, IUser user, IS3Storage storage)
+    public UserService(
+        UserManager<User> userManager,
+        ITokenRepository tokenRepository,
+        IUnitOfWork unitOfWork,
+        ILogger<UserService> logger,
+        IUser user,
+        IS3Storage storage,
+        IConfiguration configuration)
     {
         _userManager = userManager;
         _tokenRepository = tokenRepository;
@@ -32,7 +43,9 @@ public class UserService : IUserService
         _user = user;
         _unitOfWork = unitOfWork;
         _storage = storage;
+        _configuration = configuration;
     }
+
 
     public async Task<ServiceResponse> LoginAsync(LoginRequestDto requestBody)
     {
@@ -164,11 +177,11 @@ public class UserService : IUserService
         {
             Id = user.Id,
             Email = user.Email!,
-            UserName = user.UserName,          // ✅
+            UserName = user.UserName,         
             Role = role,
 
-            Name = user.Name,                  // ✅
-            PhoneNumber = user.PhoneNumber,    // ✅
+            Name = user.Name,                  
+            PhoneNumber = user.PhoneNumber,    
 
             FirstName = user.FirstName,
             LastName = user.LastName,
@@ -178,7 +191,7 @@ public class UserService : IUserService
             Height = user.Height,
             Weight = user.Weight,
 
-            Status = (int) user.Status, // nếu request.Status là int
+            Status = (int) user.Status, 
             AvatarImg = user.AvatarImg,
             BirthDate = user.Birthdate,
             CreatedAt = user.CreatedAt
@@ -395,6 +408,178 @@ public class UserService : IUserService
             Meta = meta
         };
     }
+     
+     
+     
+public async Task<ServiceResponse> CreateAsync(UserCreateRequestDto requestBody, CancellationToken ct = default)
+{
+    if (string.IsNullOrWhiteSpace(requestBody.Email))
+        return new ServiceResponse { Succeeded = false, Message = "Email không được để trống!" };
+
+    if (string.IsNullOrWhiteSpace(requestBody.Password))
+        return new ServiceResponse { Succeeded = false, Message = "Password không được để trống!" };
+
+    var email = requestBody.Email.Trim();
+
+    var existed = await _userManager.FindByEmailAsync(email);
+    if (existed is not null)
+        return new ServiceResponse { Succeeded = false, Message = "Tài khoản đã tồn tại!" };
+
+    var user = new User
+    {
+        Email = email,
+        UserName = requestBody.UserName?.Trim() ?? email,
+        Name = email,
+        Status = requestBody.Status ?? CommonStatus.Active
+    };
+
+    // UserCreateRequestDto : UserRequestDto => reuse fields profile
+    ApplyProfile(user, requestBody);
+
+    var result = await _userManager.CreateAsync(user, requestBody.Password);
+    if (!result.Succeeded)
+    {
+        var msg = string.Join("; ", result.Errors.Select(e => e.Description));
+        return new ServiceResponse { Succeeded = false, Message = $"Không thể tạo tài khoản: {msg}" };
+    }
+
+    var role = string.IsNullOrWhiteSpace(requestBody.Role) ? "User" : requestBody.Role.Trim();
+    var addRole = await _userManager.AddToRoleAsync(user, role);
+    if (!addRole.Succeeded)
+    {
+        await _userManager.DeleteAsync(user);
+        var msg = string.Join("; ", addRole.Errors.Select(e => e.Description));
+        return new ServiceResponse { Succeeded = false, Message = $"Không thể gán role: {msg}" };
+    }
+
+    await _unitOfWork.SaveChangesAsync();
+
+    return new ResponseData<Guid>
+    {
+        Succeeded = true,
+        Message = "Tạo người dùng thành công!",
+        Data = user.Id
+    };
+}
+
+private static void ApplyProfile(User user, UserRequestDto dto)
+{
+    if (!string.IsNullOrWhiteSpace(dto.Name))
+        user.Name = dto.Name.Trim();
+
+    if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+        user.PhoneNumber = dto.PhoneNumber.Trim();
+
+    if (dto.BirthDate.HasValue)
+        user.Birthdate = dto.BirthDate;
+
+    if (dto.Height.HasValue)
+        user.Height = dto.Height;
+
+    if (dto.Weight.HasValue)
+        user.Weight = dto.Weight;
+
+    if (dto.Gender.HasValue)
+        user.Gender = dto.Gender.Value;
+
+    if (!string.IsNullOrWhiteSpace(dto.FirstName))
+        user.FirstName = dto.FirstName.Trim();
+
+    if (!string.IsNullOrWhiteSpace(dto.LastName))
+        user.LastName = dto.LastName.Trim();
+
+    if (!string.IsNullOrWhiteSpace(dto.Address))
+        user.Address = dto.Address.Trim();
+
+    if (dto.Status.HasValue)
+        user.Status = dto.Status.Value;
+}
+
+public async Task<ServiceResponse> GoogleLoginAsync(GoogleLoginRequestDto requestBody)
+{
+    if (string.IsNullOrWhiteSpace(requestBody.IdToken))
+        return new ServiceResponse { Succeeded = false, Message = "Missing idToken" };
+
+    var googleClientId = _configuration["GoogleOAuth:ClientId"];
+    if (string.IsNullOrWhiteSpace(googleClientId))
+    {
+        _logger.LogError("GoogleOAuth:ClientId not configured");
+        return new ServiceResponse { Succeeded = false, Message = "Google clientId not configured" };
+    }
+
+    GoogleJsonWebSignature.Payload payload;
+    try
+    {
+        payload = await GoogleJsonWebSignature.ValidateAsync(
+            requestBody.IdToken,
+            new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = new[] { googleClientId }
+            });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogWarning(ex, "Invalid Google id_token");
+        return new ServiceResponse { Succeeded = false, Message = "Invalid Google token" };
+    }
+
+    if (string.IsNullOrWhiteSpace(payload.Email))
+        return new ServiceResponse { Succeeded = false, Message = "Google token missing email" };
+
+    var email = payload.Email.Trim();
+
+    // 1) find user
+    var user = await _userManager.FindByEmailAsync(email);
+
+    // 2) create only if not exists (password mặc định)
+    var created = false;
+    if (user is null)
+    {
+        var createReq = new UserCreateRequestDto
+        {
+            Email = email,
+            Password = DefaultGooglePassword,
+            UserName = email,
+            Role = "User",
+            AuthProvider = "Google"
+        };
+
+        var createRes = await CreateAsync(createReq);
+        if (!createRes.Succeeded)
+            return createRes;
+
+        user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+            return new ServiceResponse { Succeeded = false, Message = "Không thể tạo user sau Google login" };
+
+        created = true;
+    }
+
+    // 3) status check giống LoginAsync
+    if (user.Status != CommonStatus.Active)
+        return new ServiceResponse { Succeeded = false, Message = "Tài khoản đã bị vô hiệu hóa!" };
+
+    // 4) issue JWT giống LoginAsync
+    var roles = await _userManager.GetRolesAsync(user);
+    var role = roles.FirstOrDefault() ?? "User";
+
+    var (token, expire) = _tokenRepository.GenerateJwtToken(user, role);
+
+    return new ResponseData<LoginResponseDto>
+    {
+        Succeeded = true,
+        Message = created ? "Tạo tài khoản Google & đăng nhập thành công!" : "Đăng nhập Google thành công!",
+        Data = new LoginResponseDto
+        {
+            Token = token,
+            ExpiredIn = expire
+        }
+    };
+}
+
+
+
+
     
     
     

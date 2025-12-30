@@ -22,4 +22,7 @@ public interface IUserService
         List<IFormFile>? files,
         string? meta,
         CancellationToken ct);
+    
+    Task<ServiceResponse> GoogleLoginAsync(GoogleLoginRequestDto requestBody);
+
 }
