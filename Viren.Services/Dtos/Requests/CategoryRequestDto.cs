@@ -10,7 +10,6 @@ namespace Viren.Services.Dtos.Requests
 {
     public class CategoryRequestDto
     {
-        public Guid Id { get; set; }
         [Required(ErrorMessage = "Vui lòng nhập tên sản phẩm")]
         public string Name { get; set; } = string.Empty;
         public string? Thumbnail { get; set; }

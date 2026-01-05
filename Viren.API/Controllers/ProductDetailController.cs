@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Viren.Repositories.Domains;
 using Viren.Repositories.Storage.Bucket;
 using Viren.Services.Dtos.Requests;
 using Viren.Services.Dtos.Response;
@@ -10,72 +9,77 @@ namespace Viren.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class CategoryController : Controller
+    public class ProductDetailController : ControllerBase
     {
-        private readonly ICategoryService _categoryService;
+        private IProductDetailService _productDetailService;
         private readonly IS3Storage _storage;
-        public CategoryController(ICategoryService categoryService, IS3Storage storage)
+
+        public ProductDetailController(IProductDetailService productDetailService, IS3Storage storage)
         {
-            _categoryService = categoryService;
+            _productDetailService = productDetailService;
             _storage = storage;
         }
 
         [HttpGet]
-        public async Task<IResult> GetAllCategoryAsync(
+        public async Task<IResult> GetAllProductDetailAsync(
+            [FromQuery] Guid? productId,
             [FromQuery] string? search,
-            [FromQuery] int? page = 1,
-            [FromQuery] int? pageSize = 10,
+            [FromQuery] string? sortBy = "size",
+            [FromQuery] string? sortDirection = "desc",
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
             CancellationToken cancellationToken = default)
         {
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
             if (pageSize > 100) pageSize = 100;
-
-            var request = new GetCategoryPaginatedRequest
+            var request = new GetProductDetailPaginatedRequest
             {
                 Search = search,
-                Page = page ?? 1,
-                PageSize = pageSize ?? 10
+                SortBy = sortBy ?? "size",
+                SortDirection = sortDirection ?? "desc",
+                PageNumber = page,
+                PageSize = pageSize,
+                ProductId = productId
             };
-
-            var serviceResponse = await _categoryService.GetAllCategoryAsync(request, cancellationToken);
+            var serviceResponse = await _productDetailService.GetAllProductDetailAsync(request, cancellationToken);
             return TypedResults.Ok(serviceResponse);
+        }
+
+        [HttpPost]
+        public async Task<IResult> CreateProductDetailAsync(
+            [FromBody] ProductDetailRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var serviceResponse = await _productDetailService.CreateProductDetailAsync(request, cancellationToken);
+            if (serviceResponse.Succeeded)
+            {
+                return TypedResults.Ok(serviceResponse);
+            }
+            return TypedResults.BadRequest(serviceResponse);
         }
 
         [HttpGet]
         [Route("{id}")]
-        public async Task<IResult> GetCategoryByIdAsync(
+        public async Task<IResult> GetProductDetailByIdAsync(
             [FromRoute] Guid id,
             CancellationToken cancellationToken = default)
         {
-            var serviceResponse = await _categoryService.GetCategoryByIdAsync(id, cancellationToken);
+            var serviceResponse = await _productDetailService.GetProductDetailByIdAsync(id, cancellationToken);
             if (serviceResponse.Succeeded)
             {
                 return TypedResults.Ok(serviceResponse);
             }
-            return TypedResults.BadRequest(serviceResponse);
+            return TypedResults.NotFound(serviceResponse);
         }
 
-        [HttpPost]
-        public async Task<IResult> CreateCategoryAsync(
-            [FromBody] CategoryRequestDto request,
+        [HttpPut("{id}")]
+        public async Task<IResult> UpdateProductDetailAsync(
+            [FromRoute] Guid id,
+            [FromBody] ProductDetailRequestDto request,
             CancellationToken cancellationToken = default)
         {
-            var serviceResponse = await _categoryService.CreateCategoryAsync(request, cancellationToken);
-            if (serviceResponse.Succeeded)
-            {
-                return TypedResults.Ok(serviceResponse);
-            }
-            return TypedResults.BadRequest(serviceResponse);
-        }
-
-        [HttpPut]
-        public async Task<IResult> UpdateCategoryAsync(
-            [FromQuery] Guid id,
-            [FromBody] CategoryRequestDto request,
-            CancellationToken cancellationToken = default)
-        {
-            var serviceResponse = await _categoryService.UpdateCategoryAsync(id, request, cancellationToken);
+            var serviceResponse = await _productDetailService.UpdateProductDetailAsync(id, request, cancellationToken);
             if (serviceResponse.Succeeded)
             {
                 return TypedResults.Ok(serviceResponse);
@@ -85,11 +89,11 @@ namespace Viren.API.Controllers
 
         [HttpDelete]
         [Route("{id}")]
-        public async Task<IResult> DeleteCategoryAsync(
+        public async Task<IResult> DeleteProductDetailAsync(
             [FromRoute] Guid id,
             CancellationToken cancellationToken = default)
         {
-            var serviceResponse = await _categoryService.DeleteCategoryAsync(id, cancellationToken);
+            var serviceResponse = await _productDetailService.DeleteProductDetailAsync(id, cancellationToken);
             if (serviceResponse.Succeeded)
             {
                 return TypedResults.Ok(serviceResponse);
@@ -101,14 +105,14 @@ namespace Viren.API.Controllers
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(100 * 1024 * 1024)]
         [ProducesResponseType(typeof(ReconcileResponseDto), StatusCodes.Status201Created)]
-        public async Task<IActionResult> UploadCategoryFileAsync(
+        public async Task<IActionResult> UploadProductDetailFileAsync(
             [FromRoute] Guid id,
             [FromForm] UploadRequest req,
             CancellationToken cancellationToken = default)
         {
-            var resp = await _categoryService.ReconcileCategoryThumbnailAsync(id, req.KeepJson, req.Files, req.Meta, cancellationToken);
+            var resp = await _productDetailService.ReconcileProductDetailThumbnailAsync(id, req.KeepJson, req.Files, req.Meta, cancellationToken);
 
-            Console.WriteLine($"[User Reconcile] cate={id} uploaded={resp.UploadedFiles.Count} desired={resp.Desired.Count}");
+            Console.WriteLine($"[User Reconcile] ProductDetail={id} uploaded={resp.UploadedFiles.Count} desired={resp.Desired.Count}");
 
             return Created(String.Empty, resp);
         }

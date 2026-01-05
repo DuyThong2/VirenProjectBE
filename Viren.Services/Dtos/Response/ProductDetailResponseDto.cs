@@ -6,14 +6,14 @@ using System.Threading.Tasks;
 
 namespace Viren.Services.Dtos.Response
 {
-    public class ProductResponseDto
+    public class ProductDetailResponseDto
     {
         public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string? Thumbnail { get; set; }
-        public decimal Price { get; set; }
-        public string Status { get; set; } = string.Empty;
+        public string Size { get; set; } = null!;
+        public string Color { get; set; } = null!;
+        public int Stock { get; set; }
+        public string? Images { get; set; }
+        public string Status { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

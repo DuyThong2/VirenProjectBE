@@ -6,10 +6,13 @@ using System.Threading.Tasks;
 
 namespace Viren.Services.Dtos.Requests
 {
-    public class GetCategoryPaginatedRequest
+    public class GetProductDetailPaginatedRequest
     {
         public string? Search { get; set; }
-        public int Page { get; set; } = 1;
+        public string SortBy { get; set; } = "CreatedAt";
+        public string SortDirection { get; set; } = "desc";
+        public Guid? ProductId { get; set; }
+        public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }
 }
