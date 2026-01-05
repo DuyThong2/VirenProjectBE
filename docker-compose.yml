@@ -1,0 +1,6 @@
+services:
+  viren.api:
+    image: ${IMAGE_NAME:-duythong2/virenapi}:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Viren.API/Dockerfile

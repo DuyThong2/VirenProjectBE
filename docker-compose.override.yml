@@ -1,0 +1,79 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: viren-mssql
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "1434:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/1433' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 6s
+
+    # healthcheck:
+    #   test: >
+    #     /opt/mssql-tools/bin/sqlcmd
+    #     -S localhost
+    #     -U sa
+    #     -P "${DB_PASSWORD}"
+    #     -Q "SELECT 1"
+    #   interval: 5s
+    #   timeout: 5s
+    #   retries: 10
+    #   start_period: 6s
+
+
+  viren.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
+
+      # Google OAuth
+      - GoogleOAuth__ClientId=${GOOGLE_CLIENT_ID}
+
+      # JWT
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - JwtSettings__Issuer=${JWT_ISSUER}
+      - JwtSettings__Audience=${JWT_AUDIENCE}
+      - JwtSettings__AccessTokenExpirationSeconds=${JWT_ACCESS_TOKEN_EXP_SECONDS}
+
+      # AWS
+      - AwsOptions__Region=${AWS_REGION}
+      - AwsOptions__Bucket=${AWS_BUCKET}
+      - AwsOptions__KeyPrefix=${AWS_KEY_PREFIX}
+      - AwsOptions__PublicBaseUrl=${AWS_PUBLIC_BASE_URL}
+      - AwsOptions__AccessKey=${AWS_ACCESS_KEY}
+      - AwsOptions__SecretKey=${AWS_SECRET_KEY}
+
+      # PayOS
+      - PayOS__BaseUrl=${PAYOS_BASE_URL}
+      - PayOS__ClientId=${PAYOS_CLIENT_ID}
+      - PayOS__ApiKey=${PAYOS_API_KEY}
+      - PayOS__ChecksumKey=${PAYOS_CHECKSUM_KEY}
+      - PayOS__ReturnUrl=${PAYOS_RETURN_URL}
+      - PayOS__CancelUrl=${PAYOS_CANCEL_URL}
+      - PayOS__ExpirationSeconds=${PAYOS_EXPIRATION_SECONDS}
+
+    ports:
+      - "7048:8081"
+      - "5297:8080"
+    restart: unless-stopped
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    depends_on:
+      mssql:
+        condition: service_healthy
+volumes:
+  mssql_data:

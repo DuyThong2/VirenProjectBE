@@ -23,6 +23,15 @@ public class Program
             await Viren.Repositories.Data.IdentitySeeder.SeedAsync(app.Services);
         }
 
+        app.MapGet("/health", () =>
+        {
+            return Results.Ok(new
+            {
+                status = "Healthy",
+                timestamp = DateTime.UtcNow
+            });
+        });
+
         app.UseApplicationMiddleware();
 
         app.Run();
