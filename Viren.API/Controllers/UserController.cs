@@ -129,4 +129,13 @@ public class UserController : ControllerBase
         return file; 
     }
 
+    [HttpPost]
+    public async Task<IActionResult> CreateUserAsync(
+        [FromBody] UserCreateRequestDto requestBody,
+        CancellationToken ct = default)
+    {
+        var res = await _userService.CreateAsync(requestBody, ct);
+        return res.Succeeded ? Created(String.Empty, res) :BadRequest(res);
+    }
+
 }

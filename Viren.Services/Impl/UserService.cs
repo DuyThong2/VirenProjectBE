@@ -1,9 +1,11 @@
 ﻿using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Text;
 using Viren.Repositories.Domains;
 using Viren.Repositories.Enums;
 using Viren.Repositories.Interfaces;
@@ -26,16 +28,19 @@ public class UserService : IUserService
     private readonly IS3Storage _storage;
     private readonly IConfiguration _configuration;
     private const string DefaultGooglePassword = "Abc123456!";
+    private readonly IEmailSender _emailSender;
+
 
 
     public UserService(
-        UserManager<User> userManager,
-        ITokenRepository tokenRepository,
-        IUnitOfWork unitOfWork,
-        ILogger<UserService> logger,
-        IUser user,
-        IS3Storage storage,
-        IConfiguration configuration)
+    UserManager<User> userManager,
+    ITokenRepository tokenRepository,
+    IUnitOfWork unitOfWork,
+    ILogger<UserService> logger,
+    IUser user,
+    IS3Storage storage,
+    IConfiguration configuration,
+    IEmailSender emailSender)
     {
         _userManager = userManager;
         _tokenRepository = tokenRepository;
@@ -44,7 +49,9 @@ public class UserService : IUserService
         _unitOfWork = unitOfWork;
         _storage = storage;
         _configuration = configuration;
+        _emailSender = emailSender;
     }
+
 
 
     public async Task<ServiceResponse> LoginAsync(LoginRequestDto requestBody)
@@ -577,11 +584,94 @@ public async Task<ServiceResponse> GoogleLoginAsync(GoogleLoginRequestDto reques
     };
 }
 
+    public async Task<ServiceResponse> ForgotPasswordAsync(ForgotPasswordRequestDto requestBody, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(requestBody.Email))
+            return new ServiceResponse { Succeeded = false, Message = "Email không được để trống!" };
 
+        var email = requestBody.Email.Trim();
+        var user = await _userManager.FindByEmailAsync(email);
 
+        // SECURITY: không để lộ email có tồn tại hay không
+        if (user is null)
+            return new ServiceResponse { Succeeded = true, Message = "Nếu email tồn tại, hệ thống đã gửi link đặt lại mật khẩu." };
 
-    
-    
-    
+        if (user.Status != CommonStatus.Active)
+            return new ServiceResponse { Succeeded = true, Message = "Nếu email tồn tại, hệ thống đã gửi link đặt lại mật khẩu." };
+
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+        // token có ký tự đặc biệt => encode để đi URL
+        var tokenBytes = Encoding.UTF8.GetBytes(token);
+        var tokenEncoded = WebEncoders.Base64UrlEncode(tokenBytes);
+
+        var frontendBaseUrl = _configuration["App:FrontendBaseUrl"]; // ví dụ: https://mydomain.com
+        if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            return new ServiceResponse { Succeeded = false, Message = "Missing App:FrontendBaseUrl config" };
+
+        // link trang FE, FE sẽ gọi API reset-password
+        var resetLink = $"{frontendBaseUrl.TrimEnd('/')}/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(tokenEncoded)}";
+
+        var subject = "Reset password";
+        var body = $@"
+        <p>Bạn vừa yêu cầu đặt lại mật khẩu.</p>
+        <p>Nhấn vào link sau để đặt lại mật khẩu:</p>
+        <p><a href=""{resetLink}"">{resetLink}</a></p>
+        <p>Nếu không phải bạn yêu cầu, hãy bỏ qua email này.</p>
+    ";
+
+        await _emailSender.SendAsync(email, subject, body, ct);
+
+        return new ServiceResponse
+        {
+            Succeeded = true,
+            Message = "Nếu email tồn tại, hệ thống đã gửi link đặt lại mật khẩu."
+        };
+    }
+
+    public async Task<ServiceResponse> ResetPasswordAsync(ResetPasswordRequestDto requestBody, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(requestBody.Email))
+            return new ServiceResponse { Succeeded = false, Message = "Email không được để trống!" };
+
+        if (string.IsNullOrWhiteSpace(requestBody.Token))
+            return new ServiceResponse { Succeeded = false, Message = "Token không hợp lệ!" };
+
+        if (string.IsNullOrWhiteSpace(requestBody.NewPassword))
+            return new ServiceResponse { Succeeded = false, Message = "Mật khẩu mới không được để trống!" };
+
+        if (requestBody.NewPassword != requestBody.ConfirmPassword)
+            return new ServiceResponse { Succeeded = false, Message = "Mật khẩu xác nhận không khớp!" };
+
+        var email = requestBody.Email.Trim();
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+            return new ServiceResponse { Succeeded = false, Message = "Reset password thất bại!" };
+
+        // decode token về format Identity cần
+        string token;
+        try
+        {
+            var tokenBytes = WebEncoders.Base64UrlDecode(requestBody.Token);
+            token = Encoding.UTF8.GetString(tokenBytes);
+        }
+        catch
+        {
+            return new ServiceResponse { Succeeded = false, Message = "Token không hợp lệ!" };
+        }
+
+        var result = await _userManager.ResetPasswordAsync(user, token, requestBody.NewPassword);
+        if (!result.Succeeded)
+        {
+            var msg = string.Join("; ", result.Errors.Select(e => e.Description));
+            return new ServiceResponse { Succeeded = false, Message = $"Reset password thất bại: {msg}" };
+        }
+
+        return new ServiceResponse
+        {
+            Succeeded = true,
+            Message = "Đặt lại mật khẩu thành công!"
+        };
+    }
 
 }

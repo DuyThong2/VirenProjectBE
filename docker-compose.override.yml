@@ -62,6 +62,15 @@ services:
       - PayOS__ReturnUrl=${PAYOS_RETURN_URL}
       - PayOS__CancelUrl=${PAYOS_CANCEL_URL}
       - PayOS__ExpirationSeconds=${PAYOS_EXPIRATION_SECONDS}
+      # App
+      - App__FrontendBaseUrl=${App__FrontendBaseUrl}
+
+      # Email SMTP
+      - Email__Smtp__Host=${Email__Smtp__Host}
+      - Email__Smtp__Port=${Email__Smtp__Port}
+      - Email__Smtp__Username=${Email__Smtp__Username}
+      - Email__Smtp__Password=${Email__Smtp__Password}
+      - Email__Smtp__From=${Email__Smtp__From}
 
     ports:
       - "7048:8081"

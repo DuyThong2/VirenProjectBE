@@ -53,4 +53,20 @@ public class AuthsController
         return TypedResults.Unauthorized();
     }
 
+    [HttpPost("forgot-password")]
+    public async Task<IResult> ForgotPassword([FromBody] ForgotPasswordRequestDto requestBody, CancellationToken ct)
+    {
+        var res = await _userService.ForgotPasswordAsync(requestBody, ct);
+        // luôn Ok để tránh leak email tồn tại
+        return TypedResults.Ok(res);
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IResult> ResetPassword([FromBody] ResetPasswordRequestDto requestBody, CancellationToken ct)
+    {
+        var res = await _userService.ResetPasswordAsync(requestBody, ct);
+        return res.Succeeded ? TypedResults.Ok(res) : TypedResults.BadRequest(res);
+    }
+
+
 }

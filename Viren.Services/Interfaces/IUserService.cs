@@ -12,6 +12,7 @@ public interface IUserService
     Task<ServiceResponse> GetUserByIdAsync(Guid? userId = null, CancellationToken cancellationToken = default);
     Task<ServiceResponse> UpdateAsync(Guid? userId, UserRequestDto requestBody, CancellationToken cancellationToken = default);
 
+    Task<ServiceResponse> CreateAsync(UserCreateRequestDto requestBody, CancellationToken ct = default);
     Task<PaginatedResponse<UserWithSubscriptionResponseDto>> GetUsersAsync(
         GetUsersPaginatedRequest request,
         CancellationToken cancellationToken = default);
@@ -24,5 +25,8 @@ public interface IUserService
         CancellationToken ct);
     
     Task<ServiceResponse> GoogleLoginAsync(GoogleLoginRequestDto requestBody);
+
+    Task<ServiceResponse> ForgotPasswordAsync(ForgotPasswordRequestDto requestBody, CancellationToken ct = default);
+    Task<ServiceResponse> ResetPasswordAsync(ResetPasswordRequestDto requestBody, CancellationToken ct = default);
 
 }
