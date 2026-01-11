@@ -329,6 +329,98 @@ public sealed class PaymentService : IPaymentService
         }
     }
 
-    
+    public async Task<PaginatedResponse<PaymentDtoResponse>> GetPaymentsAsync(
+    GetPaymentsRequest request,
+    CancellationToken cancellationToken = default)
+    {
+        var paymentRepo = _unitOfWork.GetRepository<Payment, Guid>();
+
+        IQueryable<Payment> query = paymentRepo.Query()
+            .AsNoTracking()
+            .Include(p => p.User);
+
+        // ===== Filters =====
+        if (request.UserId.HasValue)
+            query = query.Where(p => p.UserId == request.UserId.Value);
+
+        if (request.OrderId.HasValue)
+            query = query.Where(p => p.OrderId == request.OrderId.Value);
+
+        if (!string.IsNullOrWhiteSpace(request.TransactionCode))
+        {
+            var tx = request.TransactionCode.Trim();
+            query = query.Where(p => p.TransactionCode != null && p.TransactionCode.Contains(tx));
+        }
+
+        if (request.MinAmount.HasValue)
+            query = query.Where(p => p.Amount >= request.MinAmount.Value);
+
+        if (request.MaxAmount.HasValue)
+            query = query.Where(p => p.Amount <= request.MaxAmount.Value);
+
+        if (request.PaymentType.HasValue)
+            query = query.Where(p => p.PaymentType == request.PaymentType.Value);
+
+        if (request.Status.HasValue)
+            query = query.Where(p => p.Status == request.Status.Value);
+
+        // ===== Filter theo ngày tạo (CreatedAt) =====
+        if (request.FromDate.HasValue)
+        {
+            var from = request.FromDate.Value.Date;
+            query = query.Where(p => p.CreatedAt >= from);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var toExclusive = request.ToDate.Value.Date.AddDays(1);
+            query = query.Where(p => p.CreatedAt < toExclusive);
+        }
+
+        // ===== Pagination =====
+        if (request.Page <= 0) request.Page = 1;
+        if (request.PageSize <= 0) request.PageSize = 10;
+        if (request.PageSize > 100) request.PageSize = 100;
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var payments = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(p => new PaymentDtoResponse
+            {
+                Id = p.Id,
+                OrderId = p.OrderId,
+                Amount = p.Amount,
+                PaymentType = p.PaymentType,
+                Status = p.Status,
+                QrCodeUrl = p.QrCodeUrl,
+                TransactionCode = p.TransactionCode,
+                CreatedAt = p.CreatedAt,
+                VerifiedAt = p.VerifiedAt,
+
+                UserId = p.UserId,
+                FullName = p.User == null
+                    ? null
+                    : ((p.User.LastName ?? "") + " " + (p.User.FirstName ?? "")).Trim(),
+                Email = p.User != null ? p.User.Email : null,
+                PhoneNumber = p.User != null ? p.User.PhoneNumber : null
+            })
+            .ToListAsync(cancellationToken);
+
+        return new PaginatedResponse<PaymentDtoResponse>
+        {
+            Succeeded = true,
+            Message = "Lấy danh sách payment thành công",
+            Data = payments,
+            PageSize = request.PageSize,
+            TotalItems = totalCount
+        };
+    }
+
+
+
+
 
 }

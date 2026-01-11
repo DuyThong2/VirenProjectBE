@@ -138,4 +138,21 @@ public class UserController : ControllerBase
         return res.Succeeded ? Created(String.Empty, res) :BadRequest(res);
     }
 
+    [HttpPatch("{userId:guid}/status")]
+    public async Task<IActionResult> UpdateUserStatusAsync(
+    [FromRoute] Guid userId,
+    [FromBody] UpdateUserStatusRequestDto requestBody,
+    CancellationToken cancellationToken = default)
+    {
+        var res = await _userService.UpdateUserStatusAsync(
+            userId,
+            requestBody,
+            cancellationToken
+        );
+
+        return res.Succeeded
+            ? Ok(res)
+            : BadRequest(res);
+    }
+
 }

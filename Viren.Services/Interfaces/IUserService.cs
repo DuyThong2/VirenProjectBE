@@ -23,7 +23,13 @@ public interface IUserService
         List<IFormFile>? files,
         string? meta,
         CancellationToken ct);
-    
+
+    Task<ServiceResponse> UpdateUserStatusAsync(
+    Guid userId,
+    UpdateUserStatusRequestDto requestBody,
+    CancellationToken cancellationToken = default);
+
+
     Task<ServiceResponse> GoogleLoginAsync(GoogleLoginRequestDto requestBody);
 
     Task<ServiceResponse> ForgotPasswordAsync(ForgotPasswordRequestDto requestBody, CancellationToken ct = default);

@@ -6,17 +6,15 @@ using Viren.Services.Dtos.Response;
 namespace Viren.Services.Interfaces;
 
 
-    public interface IPaymentService
-    {
-        Task<ServiceResponse> CreatePaymentLinkByAmountAsync(
-            CreatePaymentByAmountRequest requestBody,
-            CancellationToken ct = default);
-        
-        Task ProcessPayOsWebhookToPaymentAsync(WebhookData data, CancellationToken ct = default);
-        
-        Task<ServiceResponse> CreatePaymentLinkByOrderAsync(PaymentRequest requestBody, CancellationToken ct = default);
+public interface IPaymentService
+{
+    Task<ServiceResponse> CreatePaymentLinkByAmountAsync(
+        CreatePaymentByAmountRequest requestBody,
+        CancellationToken ct = default);
 
-        
+    Task ProcessPayOsWebhookToPaymentAsync(WebhookData data, CancellationToken ct = default);
 
-    }
+    Task<ServiceResponse> CreatePaymentLinkByOrderAsync(PaymentRequest requestBody, CancellationToken ct = default);
+    Task<PaginatedResponse<PaymentDtoResponse>> GetPaymentsAsync(GetPaymentsRequest req, CancellationToken ct);
+}
 

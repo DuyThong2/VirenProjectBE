@@ -251,21 +251,22 @@ public class UserService : IUserService
     {
         var newUserName = requestBody.Name.Trim();
 
-        // nếu muốn "slugify" cho username (không dấu, không space), bạn có thể thay ở đây
-        // newUserName = Slugify(newUserName);
+            // nếu muốn "slugify" cho username (không dấu, không space), bạn có thể thay ở đây
+            // newUserName = Slugify(newUserName);
 
-        // check trùng username với user khác
-        var existed = await _userManager.FindByNameAsync(newUserName);
-        if (existed != null && existed.Id != user.Id)
-        {
-            return new ServiceResponse
+            // check trùng username với user khác
+            var existed = await _userManager.FindByNameAsync(newUserName);
+            
+            if (existed != null && existed.Id != user.Id)
             {
-                Succeeded = false,
-                Message = "Tên đăng nhập (UserName) đã tồn tại. Vui lòng chọn tên khác."
-            };
-        }
+                return new ServiceResponse
+                {
+                    Succeeded = false,
+                    Message = "Tên đăng nhập (UserName) đã tồn tại. Vui lòng chọn tên khác."
+                };
+            }
 
-        user.UserName = newUserName;
+            user.UserName = newUserName;
         user.NormalizedUserName = _userManager.NormalizeName(newUserName);
     }
 
@@ -347,11 +348,18 @@ public class UserService : IUserService
 
     private string ResolveUserId(Guid? userId)
     {
-        if (userId.HasValue)
+        if (userId.HasValue) {
+            Console.WriteLine("user id:" + userId.Value);
             return userId.Value.ToString();
+        }
+            
 
         if (!string.IsNullOrEmpty(_user.Id))
+        {
+            Console.WriteLine("owner id" + _user.Id);
             return _user.Id;
+        }
+            
 
         throw new UnauthorizedAccessException("User is not authenticated");
     }
@@ -418,91 +426,91 @@ public class UserService : IUserService
      
      
      
-public async Task<ServiceResponse> CreateAsync(UserCreateRequestDto requestBody, CancellationToken ct = default)
-{
-    if (string.IsNullOrWhiteSpace(requestBody.Email))
-        return new ServiceResponse { Succeeded = false, Message = "Email không được để trống!" };
-
-    if (string.IsNullOrWhiteSpace(requestBody.Password))
-        return new ServiceResponse { Succeeded = false, Message = "Password không được để trống!" };
-
-    var email = requestBody.Email.Trim();
-
-    var existed = await _userManager.FindByEmailAsync(email);
-    if (existed is not null)
-        return new ServiceResponse { Succeeded = false, Message = "Tài khoản đã tồn tại!" };
-
-    var user = new User
+    public async Task<ServiceResponse> CreateAsync(UserCreateRequestDto requestBody, CancellationToken ct = default)
     {
-        Email = email,
-        UserName = requestBody.UserName?.Trim() ?? email,
-        Name = email,
-        Status = requestBody.Status ?? CommonStatus.Active
-    };
+        if (string.IsNullOrWhiteSpace(requestBody.Email))
+            return new ServiceResponse { Succeeded = false, Message = "Email không được để trống!" };
 
-    // UserCreateRequestDto : UserRequestDto => reuse fields profile
-    ApplyProfile(user, requestBody);
+        if (string.IsNullOrWhiteSpace(requestBody.Password))
+            return new ServiceResponse { Succeeded = false, Message = "Password không được để trống!" };
 
-    var result = await _userManager.CreateAsync(user, requestBody.Password);
-    if (!result.Succeeded)
-    {
-        var msg = string.Join("; ", result.Errors.Select(e => e.Description));
-        return new ServiceResponse { Succeeded = false, Message = $"Không thể tạo tài khoản: {msg}" };
+        var email = requestBody.Email.Trim();
+
+        var existed = await _userManager.FindByEmailAsync(email);
+        if (existed is not null)
+            return new ServiceResponse { Succeeded = false, Message = "Tài khoản đã tồn tại!" };
+
+        var user = new User
+        {
+            Email = email,
+            UserName = requestBody.UserName?.Trim() ?? email,
+            Name = email,
+            Status = requestBody.Status ?? CommonStatus.Active
+        };
+
+        // UserCreateRequestDto : UserRequestDto => reuse fields profile
+        ApplyProfile(user, requestBody);
+
+        var result = await _userManager.CreateAsync(user, requestBody.Password);
+        if (!result.Succeeded)
+        {
+            var msg = string.Join("; ", result.Errors.Select(e => e.Description));
+            return new ServiceResponse { Succeeded = false, Message = $"Không thể tạo tài khoản: {msg}" };
+        }
+
+        var role = string.IsNullOrWhiteSpace(requestBody.Role) ? "User" : requestBody.Role.Trim();
+        var addRole = await _userManager.AddToRoleAsync(user, role);
+        if (!addRole.Succeeded)
+        {
+            await _userManager.DeleteAsync(user);
+            var msg = string.Join("; ", addRole.Errors.Select(e => e.Description));
+            return new ServiceResponse { Succeeded = false, Message = $"Không thể gán role: {msg}" };
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new ResponseData<Guid>
+        {
+            Succeeded = true,
+            Message = "Tạo người dùng thành công!",
+            Data = user.Id
+        };
     }
 
-    var role = string.IsNullOrWhiteSpace(requestBody.Role) ? "User" : requestBody.Role.Trim();
-    var addRole = await _userManager.AddToRoleAsync(user, role);
-    if (!addRole.Succeeded)
+    private static void ApplyProfile(User user, UserRequestDto dto)
     {
-        await _userManager.DeleteAsync(user);
-        var msg = string.Join("; ", addRole.Errors.Select(e => e.Description));
-        return new ServiceResponse { Succeeded = false, Message = $"Không thể gán role: {msg}" };
+        if (!string.IsNullOrWhiteSpace(dto.Name))
+            user.Name = dto.Name.Trim();
+
+        if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+            user.PhoneNumber = dto.PhoneNumber.Trim();
+
+        if (dto.BirthDate.HasValue)
+            user.Birthdate = dto.BirthDate;
+
+        if (dto.Height.HasValue)
+            user.Height = dto.Height;
+
+        if (dto.Weight.HasValue)
+            user.Weight = dto.Weight;
+
+        if (dto.Gender.HasValue)
+            user.Gender = dto.Gender.Value;
+
+        if (!string.IsNullOrWhiteSpace(dto.FirstName))
+            user.FirstName = dto.FirstName.Trim();
+
+        if (!string.IsNullOrWhiteSpace(dto.LastName))
+            user.LastName = dto.LastName.Trim();
+
+        if (!string.IsNullOrWhiteSpace(dto.Address))
+            user.Address = dto.Address.Trim();
+
+        if (dto.Status.HasValue)
+            user.Status = dto.Status.Value;
     }
 
-    await _unitOfWork.SaveChangesAsync();
-
-    return new ResponseData<Guid>
-    {
-        Succeeded = true,
-        Message = "Tạo người dùng thành công!",
-        Data = user.Id
-    };
-}
-
-private static void ApplyProfile(User user, UserRequestDto dto)
-{
-    if (!string.IsNullOrWhiteSpace(dto.Name))
-        user.Name = dto.Name.Trim();
-
-    if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
-        user.PhoneNumber = dto.PhoneNumber.Trim();
-
-    if (dto.BirthDate.HasValue)
-        user.Birthdate = dto.BirthDate;
-
-    if (dto.Height.HasValue)
-        user.Height = dto.Height;
-
-    if (dto.Weight.HasValue)
-        user.Weight = dto.Weight;
-
-    if (dto.Gender.HasValue)
-        user.Gender = dto.Gender.Value;
-
-    if (!string.IsNullOrWhiteSpace(dto.FirstName))
-        user.FirstName = dto.FirstName.Trim();
-
-    if (!string.IsNullOrWhiteSpace(dto.LastName))
-        user.LastName = dto.LastName.Trim();
-
-    if (!string.IsNullOrWhiteSpace(dto.Address))
-        user.Address = dto.Address.Trim();
-
-    if (dto.Status.HasValue)
-        user.Status = dto.Status.Value;
-}
-
-public async Task<ServiceResponse> GoogleLoginAsync(GoogleLoginRequestDto requestBody)
+    public async Task<ServiceResponse> GoogleLoginAsync(GoogleLoginRequestDto requestBody)
 {
     if (string.IsNullOrWhiteSpace(requestBody.IdToken))
         return new ServiceResponse { Succeeded = false, Message = "Missing idToken" };
@@ -671,6 +679,52 @@ public async Task<ServiceResponse> GoogleLoginAsync(GoogleLoginRequestDto reques
         {
             Succeeded = true,
             Message = "Đặt lại mật khẩu thành công!"
+        };
+    }
+
+
+    public async Task<ServiceResponse> UpdateUserStatusAsync(
+    Guid userId,
+    UpdateUserStatusRequestDto requestBody,
+    CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return new ServiceResponse
+            {
+                Succeeded = false,
+                Message = "Người dùng không tồn tại!"
+            };
+        }
+
+        // Nếu đã cùng status thì không cần update
+        if (user.Status == requestBody.Status)
+        {
+            return new ServiceResponse
+            {
+                Succeeded = true,
+                Message = "Trạng thái người dùng không thay đổi."
+            };
+        }
+
+        user.Status = requestBody.Status;
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            return new ServiceResponse
+            {
+                Succeeded = false,
+                Message = $"Cập nhật trạng thái thất bại: {errors}"
+            };
+        }
+
+        return new ServiceResponse
+        {
+            Succeeded = true,
+            Message = $"Cập nhật trạng thái người dùng thành công: {requestBody.Status}"
         };
     }
 

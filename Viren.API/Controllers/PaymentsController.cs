@@ -56,4 +56,22 @@ public sealed class PaymentsController : ControllerBase
             : TypedResults.BadRequest(res);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetPayments([FromQuery] GetPaymentsRequest req, CancellationToken ct)
+    {
+        var res = await _paymentService.GetPaymentsAsync(req, ct);
+        return Ok(res);
+    }
+
+    [HttpGet("/api/users/{userId:guid}/payments")]
+    public async Task<IActionResult> GetUserPayments(
+    [FromRoute] Guid userId,
+    [FromQuery] GetPaymentsRequest req,
+    CancellationToken ct)
+    {
+        req.UserId = userId;
+        var res = await _paymentService.GetPaymentsAsync(req, ct);
+        return Ok(res);
+    }
+
 }
