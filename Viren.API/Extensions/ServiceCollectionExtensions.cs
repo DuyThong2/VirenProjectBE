@@ -5,7 +5,10 @@ using Viren.Repositories.Interfaces;
 using Viren.Repositories.Utils;
 using Viren.Services.Configs;
 using Viren.Services.Impl;
+using Viren.Services.IntegrationEvents;
 using Viren.Services.Interfaces;
+using Viren.Services.Outbox;
+using Viren.Services.Workers;
 
 namespace Viren.API.Extensions;
 
@@ -25,12 +28,20 @@ public static class ServiceCollectionExtensions
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IProductService, ProductService>();
         builder.Services.AddScoped<ICategoryService, CategoryService>();
-        builder.Services.AddScoped<IProductDetailService, ProductDetailService>();
+
+        //builder.Services.AddScoped<IProductDetailService, ProductDetailService>();
+        builder.Services.AddScoped<IProductDetailService, ProductDetailServiceWithVectorOutbox>();
+
         builder.Services.AddScoped<IPaymentService, PaymentService>();
         builder.Services.AddScoped<IOrderService, OrderService>();
 
         builder.Services.AddScoped<IPaymentService, PaymentService>();
         builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+        builder.Services.AddHostedService<OutboxPublisherWorker>();
+
+        // Publisher implementation (MassTransit)
+        builder.Services.AddScoped<IEventBusPublisher, MassTransitEventBusPublisher>();
 
 
         builder.Services.AddControllers();

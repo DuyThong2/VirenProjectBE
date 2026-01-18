@@ -11,6 +11,9 @@ namespace Viren.Services.Configs
         public string Host { get; set; } = default!;
         public string UserName { get; set; } = default!;
         public string Password { get; set; } = default!;
+
+        public string VectorIndexQueueName { get; set; } = "vector-indexing";
+
     }
 
 }

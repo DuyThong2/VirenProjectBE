@@ -1,4 +1,4 @@
-services:
+﻿services:
   mssql:
     container_name: viren-mssql
     environment:
@@ -16,17 +16,7 @@ services:
       retries: 3
       start_period: 6s
 
-    # healthcheck:
-    #   test: >
-    #     /opt/mssql-tools/bin/sqlcmd
-    #     -S localhost
-    #     -U sa
-    #     -P "${DB_PASSWORD}"
-    #     -Q "SELECT 1"
-    #   interval: 5s
-    #   timeout: 5s
-    #   retries: 10
-    #   start_period: 6s
+
 
 
   viren.api:
@@ -125,6 +115,27 @@ services:
         retries: 10
         start_period: 10s
 
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chroma
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      # telemetry tắt cho gọn (tuỳ image/version, nếu không support thì bỏ dòng này)
+      - ANONYMIZED_TELEMETRY=FALSE
+    volumes:
+      - chroma_data:/chroma/chroma
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/api/v1/heartbeat || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
 volumes:
   mssql_data:
-  postgres_data:  
+  postgres_data:
+  chroma_data:

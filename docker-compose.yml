@@ -13,3 +13,6 @@ services:
 
   messagebroker:
     image: rabbitmq:management
+  
+  chroma:
+    image: chromadb/chroma:latest
