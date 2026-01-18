@@ -160,7 +160,7 @@ public sealed class OrderService : IOrderService
         }
     }
 
-    public async Task<ResponseData<Guid>> CreateOrderAsync(CreateOrderRequestDto request, CancellationToken cancellationToken)
+    public async Task<ResponseData<Guid>> CreateOrderAsync(OrderRequestDto request, CancellationToken cancellationToken)
     {
         if (request.Items == null || request.Items.Count == 0)
         {
@@ -266,6 +266,11 @@ public sealed class OrderService : IOrderService
             .Query()
             .AsNoTracking();
 
+        // Filter By Status
+        if (request.StatusFilter.HasValue)
+        {
+            query = query.Where(o => o.Status == request.StatusFilter);
+        }
         // Filter by UserId
         if (request.UserId != Guid.Empty)
         {
@@ -327,10 +332,15 @@ public sealed class OrderService : IOrderService
 
         var order = await OrderRepo.Query()
             .AsNoTracking()
+            .Include(o => o.User)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.ProductDetail)
+                    .ThenInclude(pd => pd.Product)
             .Where(o => o.Id == id)
             .Select(o => new OrderResponseDto
             {
                 Id = o.Id,
+                UserName = o.User.Name,
                 TotalAmount = o.TotalAmount,
                 ShippingAddress = o.ShippingAddress,
                 Note = o.Note,
@@ -339,6 +349,10 @@ public sealed class OrderService : IOrderService
                 Items = o.OrderItems.Select(oi => new OrderItemResponseDto
                 {
                     ProductDetailId = oi.ProductDetailId,
+                    ProductName = oi.ProductDetail.Product.Name,
+                    Images = oi.ProductDetail.Images,
+                    Color = oi.ProductDetail.Color,
+                    Size = oi.ProductDetail.Size,
                     Quantity = oi.Quantity,
                     UnitPrice = oi.Price
                 }).ToList()
@@ -359,6 +373,35 @@ public sealed class OrderService : IOrderService
             Succeeded = true,
             Message = "Lấy thông tin đơn hàng thành công.",
             Data = order
+        };
+    }
+
+    public async Task<ServiceResponse> UpdateOrderAsync(Guid id, OrderRequestDto request, CancellationToken ct)
+    {
+        var orderRepo = _unitOfWork.GetRepository<Order, Guid>();
+
+        var order = orderRepo
+            .Query()
+            .AsTracking()
+            .FirstOrDefault(o => o.Id == id);
+
+        if(order == null)
+        {
+            return new ServiceResponse
+            {
+                Succeeded = false,
+                Message = "Không tìm thấy đơn hàng."
+            };
+        }
+
+        order.ShippingAddress = request.ShippingAddress.Trim();
+        order.Note = request.Note?.Trim();
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return new ServiceResponse
+        {
+            Succeeded = true,
+            Message = "Cập nhật đơn hàng thành công."
         };
     }
 }

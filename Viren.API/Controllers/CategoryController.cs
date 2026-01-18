@@ -41,6 +41,17 @@ namespace Viren.API.Controllers
             var serviceResponse = await _categoryService.GetAllCategoryAsync(request, cancellationToken);
             return TypedResults.Ok(serviceResponse);
         }
+        [HttpGet("only-name")]
+        public async Task<IResult> GetCategoryByNameAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var serviceResponse = await _categoryService.GetCateName(cancellationToken);
+            if (serviceResponse.Succeeded)
+            {
+                return TypedResults.Ok(serviceResponse);
+            }
+            return TypedResults.BadRequest(serviceResponse);
+        }
 
         [HttpGet]
         [Route("{id}")]
@@ -69,9 +80,9 @@ namespace Viren.API.Controllers
             return TypedResults.BadRequest(serviceResponse);
         }
 
-        [HttpPut]
+        [HttpPut("{id}")]
         public async Task<IResult> UpdateCategoryAsync(
-            [FromQuery] Guid id,
+            [FromRoute] Guid id,
             [FromBody] CategoryRequestDto request,
             CancellationToken cancellationToken = default)
         {

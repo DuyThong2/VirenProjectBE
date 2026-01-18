@@ -15,6 +15,8 @@ namespace Viren.Services.Interfaces
     {
         // Get all 
         Task<PaginatedResponse<CategoryResponseDto>> GetAllCategoryAsync(GetCategoryPaginatedRequest request, CancellationToken cancellationToken = default);
+        //Get only name
+        Task<ServiceResponse> GetCateName(CancellationToken cancellationToken = default);
         // Create 
         Task<ResponseData<Guid>> CreateCategoryAsync(CategoryRequestDto request, CancellationToken cancellationToken = default);
         // Get by id

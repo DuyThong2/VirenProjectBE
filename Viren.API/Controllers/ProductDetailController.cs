@@ -46,6 +46,31 @@ namespace Viren.API.Controllers
             return TypedResults.Ok(serviceResponse);
         }
 
+        [HttpGet("by-order")]
+        public async Task<IResult> GetProductDetailByOrderIdAsync(
+            [FromQuery] Guid OrderId,
+            [FromQuery] string? search,
+            [FromQuery] string? sortBy = "size",
+            [FromQuery] string? sortDirection = "desc",
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            if (page <= 0) page = 1;
+            if (pageSize <= 0) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+            var request = new GetProductDetailPaginatedRequest
+            {
+                Search = search,
+                SortBy = sortBy ?? "size",
+                SortDirection = sortDirection ?? "desc",
+                PageNumber = page,
+                PageSize = pageSize,
+            };
+            var serviceResponse = await _productDetailService.GetProductDetailByOrderId(OrderId, request, cancellationToken);
+            return TypedResults.Ok(serviceResponse);
+        }
+
         [HttpPost]
         public async Task<IResult> CreateProductDetailAsync(
             [FromBody] ProductDetailRequestDto request,

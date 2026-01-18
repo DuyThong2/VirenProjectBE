@@ -118,6 +118,7 @@ namespace Viren.Services.Impl
 
             var query = productDetailRepo
                 .Query()
+                .Include(pd => pd.Product)
                 .AsNoTracking();
 
             // Filter by ProductId
@@ -132,7 +133,8 @@ namespace Viren.Services.Impl
                 var keyword = request.Search.Trim();
                 query = query.Where(p =>
                     p.Color.Contains(keyword) ||
-                    p.Size.Contains(keyword)
+                    p.Size.Contains(keyword)  ||
+                    p.Product.Name.Contains(keyword)
                 );
             }
 
@@ -164,6 +166,8 @@ namespace Viren.Services.Impl
                     Stock = p.Stock,
                     Images = p.Images,
                     Status = p.Status.ToString(),
+                    ProductId = p.ProductId,
+                    ProductName = p.Product.Name,
                     CreatedAt = p.CreatedAt,
                     UpdatedAt = p.UpdatedAt
                 })
@@ -196,6 +200,7 @@ namespace Viren.Services.Impl
                     Stock = p.Stock,
                     Images = p.Images,
                     Status = p.Status.ToString(),
+                    ProductId = p.ProductId,
                     CreatedAt = p.CreatedAt,
                     UpdatedAt = p.UpdatedAt
                 })
@@ -215,6 +220,73 @@ namespace Viren.Services.Impl
                 Succeeded = true,
                 Message = "Lấy chi tiết sản phẩm thành công!",
                 Data = productDetail
+            };
+        }
+
+        public async Task<PaginatedResponse<ProductDetailResponseDto>> GetProductDetailByOrderId(Guid id, GetProductDetailPaginatedRequest request, CancellationToken cancellationToken = default)
+        {
+            var productDetailRepo = _unitOfWork.GetRepository<ProductDetail, Guid>();
+
+            var query = productDetailRepo
+                .Query()
+                .Include(pd => pd.Product)
+                .AsNoTracking()
+                .Where(pd => pd.OrderItems.Any(od => od.OrderId == id));
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(p =>
+                    p.Color.Contains(keyword) ||
+                    p.Size.Contains(keyword) ||
+                    p.Product.Name.Contains(keyword)
+                );
+            }
+
+            // Apply sorting
+            if (!string.IsNullOrWhiteSpace(request.SortBy))
+            {
+                bool ascending = string.Equals(request.SortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+                query = request.SortBy.ToLower() switch
+                {
+                    "createdAt" => ascending ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt),
+                    "updatedAt" => ascending ? query.OrderBy(p => p.UpdatedAt) : query.OrderByDescending(p => p.UpdatedAt),
+                    "size" => ascending ? query.OrderBy(p => p.Size) : query.OrderByDescending(p => p.Size),
+                    "color" => ascending ? query.OrderBy(p => p.Color) : query.OrderByDescending(p => p.Color),
+                    "stock" => ascending ? query.OrderBy(p => p.Stock) : query.OrderByDescending(p => p.Stock),
+                    _ => query.OrderByDescending(p => p.CreatedAt),
+                };
+            }
+
+            // Get total count before pagination
+            var totalItems = await query.CountAsync(cancellationToken);
+            var productDetails = await query
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .Select(p => new ProductDetailResponseDto
+                {
+                    Id = p.Id,
+                    Size = p.Size,
+                    Color = p.Color,
+                    Stock = p.Stock,
+                    Images = p.Images,
+                    Status = p.Status.ToString(),
+                    ProductId = p.ProductId,
+                    ProductName = p.Product.Name,
+                    CreatedAt = p.CreatedAt,
+                    UpdatedAt = p.UpdatedAt
+                })
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResponse<ProductDetailResponseDto>
+            {
+                Data = productDetails,
+                Succeeded = true,
+                Message = "Lấy danh sách chi tiết sản phẩm thành công!",
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize,
+                TotalItems = totalItems
             };
         }
 
