@@ -9,6 +9,8 @@ namespace Viren.Services.Dtos.Response
     public class ProductDetailResponseDto
     {
         public Guid Id { get; set; }
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = null!;
         public string Size { get; set; } = null!;
         public string Color { get; set; } = null!;
         public int Stock { get; set; }

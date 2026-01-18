@@ -22,6 +22,8 @@ namespace Viren.Services.Interfaces
         Task<ServiceResponse> UpdateProductDetailAsync(Guid id, ProductDetailRequestDto request, CancellationToken cancellationToken = default);
         // Delete
         Task<ServiceResponse> DeleteProductDetailAsync(Guid id, CancellationToken cancellationToken = default);
+        // Get By OrderId
+        Task<PaginatedResponse<ProductDetailResponseDto>> GetProductDetailByOrderId(Guid id, GetProductDetailPaginatedRequest request, CancellationToken cancellationToken = default);
 
         Task<ReconcileResponseDto> ReconcileProductDetailThumbnailAsync(
             Guid productDetailId,

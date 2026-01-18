@@ -185,6 +185,7 @@ namespace Viren.Services.Impl
                     "name" => ascending ? query.OrderBy(p => p.Name) : query.OrderByDescending(p => p.Name),
                     "price" => ascending ? query.OrderBy(p => p.Price) : query.OrderByDescending(p => p.Price),
                     "createdat" => ascending ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt),
+                    "status" => ascending ? query.OrderBy(p => p.Status) : query.OrderByDescending(p => p.Status),
                     _ => query.OrderByDescending(p => p.CreatedAt),
                 };
             }
@@ -299,6 +300,7 @@ namespace Viren.Services.Impl
             };
         }
 
+        
         public async Task<ReconcileResponseDto> ReconcileProductThumbnailAsync(Guid productId, string? keepJson, List<IFormFile>? files, string? meta, CancellationToken ct)
         {
             var productRepository = _unitOfWork.GetRepository<Product, Guid>();
@@ -394,6 +396,7 @@ namespace Viren.Services.Impl
             product.Thumbnail = request.Thumbnail?.Trim();
             product.Price = request.Price;
             product.Status = request.Status;
+            product.CategoryId = request.CategoryId;
             product.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -260,7 +260,7 @@ public sealed class PaymentService : IPaymentService
             var data = new PaymentData(
                 orderCode: orderCode,
                 amount: amount,
-                description: $"Thanh toán đơn hàng {order.Id}",
+                description: $"Đã Thanh Toán Đơn Hàng",
                 items: items,
                 returnUrl: returnUrl,
                 cancelUrl: cancelUrl,
