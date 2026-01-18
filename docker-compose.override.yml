@@ -70,6 +70,10 @@ services:
       - Email__Smtp__Username=${Email__Smtp__Username}
       - Email__Smtp__Password=${Email__Smtp__Password}
       - Email__Smtp__From=${Email__Smtp__From}
+  
+      - MessageBrokerSettings__Host=amqp://ecommerce-mq:5672
+      - MessageBrokerSettings__UserName=guest
+      - MessageBrokerSettings__Password=guest
 
     ports:
       - "7048:8081"
@@ -83,6 +87,8 @@ services:
     depends_on:
       mssql:
         condition: service_healthy
+      messagebroker:
+          condition: service_healthy
 
   postgres:
     container_name: coversation-data-postgres
@@ -101,6 +107,24 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  messagebroker:
+    container_name: messagebroker
+    hostname: ecommerce-mq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+        test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+        interval: 5s
+        timeout: 5s
+        retries: 10
+        start_period: 10s
+
 volumes:
   mssql_data:
   postgres_data:  

@@ -1,3 +1,4 @@
+using System.Reflection;
 using Viren.API.Extensions;
 
 namespace Viren.API;
@@ -13,6 +14,7 @@ public class Program
             .AddDatabase()
             .AddIdentityAndJwt()
             .AddAwsS3Storage()
+            .AddMessageBroker(consumersAssembly: Assembly.GetExecutingAssembly())
             .AddApplicationServices()
             .AddSwaggerAndCors();
 

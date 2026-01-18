@@ -37,6 +37,9 @@ namespace Viren.Repositories
         public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
         public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
 
+        public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
+
+
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
