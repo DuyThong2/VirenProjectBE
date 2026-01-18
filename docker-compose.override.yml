@@ -1,6 +1,5 @@
 services:
   mssql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: viren-mssql
     environment:
       - ACCEPT_EULA=Y
@@ -84,5 +83,24 @@ services:
     depends_on:
       mssql:
         condition: service_healthy
+
+  postgres:
+    container_name: coversation-data-postgres
+    environment:
+      - POSTGRES_DB=${PG_DB:-viren_langgraph}
+      - POSTGRES_USER=${PG_USER:-viren}
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-viren_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-viren} -d ${PG_DB:-viren_langgraph}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 volumes:
   mssql_data:
+  postgres_data:  
