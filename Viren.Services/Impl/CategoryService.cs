@@ -169,6 +169,28 @@ namespace Viren.Services.Impl
             };
         }
 
+        public async Task<ServiceResponse> GetCateName(CancellationToken cancellationToken = default)
+        {
+            var categoryRepository = _unitOfWork.GetRepository<Category, Guid>();
+
+            var categories = await categoryRepository
+                .Query()
+                .AsNoTracking()
+                .Select(c => new CategoryResponseDto
+                {
+                    Id = c.Id,
+                    Name = c.Name
+                })
+                .ToListAsync(cancellationToken);
+
+            return new ResponseData<List<CategoryResponseDto>>
+            {
+                Succeeded = true,
+                Message = "Lấy danh sách danh mục thành công!",
+                Data = categories
+            };
+        }
+
         public async Task<ReconcileResponseDto> ReconcileCategoryThumbnailAsync(
             Guid categoryId, 
             string? keepJson, 

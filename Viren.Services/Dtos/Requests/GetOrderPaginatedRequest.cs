@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Viren.Repositories.Enums;
 
 namespace Viren.Services.Dtos.Requests
 {
@@ -14,5 +15,6 @@ namespace Viren.Services.Dtos.Requests
         public string ? Search { get; set; }
         public string SortBy { get; set; } = "CreatedAt";
         public string SortDirection { get; set; } = "desc";
+        public OrderStatus? StatusFilter { get; set; }
     }
 }

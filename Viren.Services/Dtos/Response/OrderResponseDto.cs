@@ -10,6 +10,7 @@ namespace Viren.Services.Dtos.Response
     public class OrderResponseDto
     {
         public Guid Id { get; set; }
+        public string UserName { get; set; } = null!;
         public decimal TotalAmount { get; set; }
         public string ShippingAddress { get; set; } = null!;
         public string? Note { get; set; }
@@ -21,6 +22,10 @@ namespace Viren.Services.Dtos.Response
     public class OrderItemResponseDto
     {
         public Guid ProductDetailId { get; set; }
+        public string ProductName { get; set; } = null!;
+        public string? Images { get; set; }
+        public string Size { get; set; } = null!;
+        public string Color { get; set; } = null!;
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
     }
