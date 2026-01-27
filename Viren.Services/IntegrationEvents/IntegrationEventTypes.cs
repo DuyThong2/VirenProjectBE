@@ -1,4 +1,6 @@
-﻿namespace Viren.Services.IntegrationEvents
+﻿using System.Text.Json.Serialization;
+
+namespace Viren.Services.IntegrationEvents
 {
     public static class IntegrationEventTypes
     {
@@ -11,36 +13,72 @@
 
     public sealed class ProductDetailUpsertedEventV1
     {
+        [JsonPropertyName("productId")]
         public Guid ProductId { get; init; }
+
+        [JsonPropertyName("productDetailId")]
         public Guid ProductDetailId { get; init; }
 
+        [JsonPropertyName("categoryId")]
         public Guid CategoryId { get; init; }
-        public string CategoryName { get; init; } = default!;
 
-        public string Brand { get; init; } = default!;
+        [JsonPropertyName("categoryName")]
+        public string CategoryName { get; init; } = "";
 
-        public string Size { get; init; } = default!;
+        [JsonPropertyName("productName")]
+        public string ProductName { get; init; } = "";
 
-        // phân loại màu (để filter/facet)
-        public string ColorFamily { get; init; } = default!;
-        public string ColorRaw { get; init; } = default!;
+        [JsonPropertyName("productDescription")]
+        public string ProductDescription { get; init; } = "";
 
+        [JsonPropertyName("size")]
+        public string Size { get; init; } = "";
+
+        [JsonPropertyName("colorFamily")]
+        public string ColorFamily { get; init; } = "";
+
+        [JsonPropertyName("colorRaw")]
+        public string ColorRaw { get; init; } = "";
+
+        [JsonPropertyName("price")]
         public decimal Price { get; init; }
+
+        [JsonPropertyName("stock")]
         public int Stock { get; init; }
 
-        public string Status { get; init; } = default!;
+        [JsonPropertyName("status")]
+        public string Status { get; init; } = "";
+
+        [JsonPropertyName("isSale")]
         public bool IsSale { get; init; }
 
+        // dùng để embedding
+        [JsonPropertyName("text")]
+        public string Text { get; init; } = "";
+
+        [JsonPropertyName("updatedAt")]
         public DateTime UpdatedAtUtc { get; init; }
 
+        [JsonPropertyName("schemaVersion")]
         public int SchemaVersion { get; init; } = 1;
+
+
+        [JsonPropertyName("productDetailImage")]
+        public string ? ProductDetailImage { get; set;  } = "";
     }
 
     public sealed class ProductDetailDeletedEventV1
     {
+        [JsonPropertyName("productId")]
         public Guid ProductId { get; init; }
+
+        [JsonPropertyName("productDetailId")]
         public Guid ProductDetailId { get; init; }
+
+        [JsonPropertyName("deletedAt")]
         public DateTime DeletedAtUtc { get; init; }
+
+        [JsonPropertyName("schemaVersion")]
         public int SchemaVersion { get; init; } = 1;
     }
 }

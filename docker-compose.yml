@@ -16,3 +16,6 @@ services:
   
   chroma:
     image: chromadb/chroma:latest
+
+  viren.agents:
+    image: duythong2/virenagents:${AGENTS_TAG:-latest}
