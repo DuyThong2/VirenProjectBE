@@ -198,7 +198,7 @@ namespace Viren.Services.Impl
             parts.Add($"Size: {detail.Size}");
             parts.Add($"Color: {detail.Color}");
 
-            return string.Join("\n", parts);
+            return string.Join(" \n ", parts);
         }
 
         private static string StatusToText(CommonStatus status)

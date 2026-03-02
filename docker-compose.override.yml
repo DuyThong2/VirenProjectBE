@@ -128,20 +128,19 @@
       - ANONYMIZED_TELEMETRY=FALSE
     volumes:
       - chroma_data:/chroma/chroma
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/api/v1/heartbeat || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+    # healthcheck:
+    #   test: ["CMD-SHELL", "wget -qO- http://localhost:8000/api/v2/heartbeat || exit 1"]
+    #   interval: 5s
+    #   timeout: 5s
+    #   retries: 10
+    #   start_period: 7s
+
+
 
   # =====================
   # Python Agents (FastAPI)
   # =====================
   viren.agents:
-    build:
-      context: ./agents
-      dockerfile: Dockerfile
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL}
@@ -160,6 +159,9 @@
 
       # Embedding
       - EMBED_MODEL=${EMBED_MODEL}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL}
+
+
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
 
       # RabbitMQ (dùng hostname ecommerce-mq trong compose)
@@ -167,7 +169,7 @@
       - VECTOR_INDEX_QUEUE=${VECTOR_INDEX_QUEUE}
 
       # JWT (nếu Python verify token)
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET_KEY}
       - JWT_ISSUER=${JWT_ISSUER}
       - JWT_AUDIENCE=${JWT_AUDIENCE}
 
@@ -183,7 +185,8 @@
       messagebroker:
         condition: service_healthy
       chroma:
-        condition: service_healthy
+        condition: service_started
+
 
 volumes:
   mssql_data:
