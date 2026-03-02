@@ -29,25 +29,11 @@ namespace Viren.API.Extensions
             services.AddSingleton<IAmazonS3>(sp =>
             {
                 var opts = sp.GetRequiredService<IAwsOptions>();
-
-                // =========================
-                // 🔍 DEBUG AWS CONFIG
-                // =========================
-                Console.WriteLine("========== AWS S3 CONFIG ==========");
-                Console.WriteLine($"Region       : {opts.Region}");
-                Console.WriteLine($"Bucket       : {opts.Bucket}");
-                Console.WriteLine($"KeyPrefix    : {opts.KeyPrefix}");
-                Console.WriteLine($"PublicBaseUrl: {opts.PublicBaseUrl}");
-                Console.WriteLine($"AccessKey    : {(string.IsNullOrEmpty(opts.AccessKey) ? "❌ NOT SET" : "✅ SET")}");
-                Console.WriteLine($"SecretKey    : {(string.IsNullOrEmpty(opts.SecretKey) ? "❌ NOT SET" : "✅ SET")}");
-                Console.WriteLine("===================================");
-
                 var region = RegionEndpoint.GetBySystemName(opts.Region);
 
                 if (!string.IsNullOrEmpty(opts.AccessKey) &&
                     !string.IsNullOrEmpty(opts.SecretKey))
                 {
-                    Console.WriteLine("🟢 AWS S3 Client: USING EXPLICIT ACCESS KEY");
 
                     return new AmazonS3Client(
                         opts.AccessKey,
@@ -55,14 +41,9 @@ namespace Viren.API.Extensions
                         region
                     );
                 }
-
-                Console.WriteLine("🟡 AWS S3 Client: USING DEFAULT / IAM ROLE CREDENTIALS");
-
-                // Fallback: IAM Role / Environment credentials
                 return new AmazonS3Client(region);
             });
 
-            // Your abstraction
             services.AddScoped<IS3Storage, S3Storage>();
 
             return builder;

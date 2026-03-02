@@ -1,6 +1,5 @@
-services:
+﻿services:
   mssql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: viren-mssql
     environment:
       - ACCEPT_EULA=Y
@@ -17,17 +16,7 @@ services:
       retries: 3
       start_period: 6s
 
-    # healthcheck:
-    #   test: >
-    #     /opt/mssql-tools/bin/sqlcmd
-    #     -S localhost
-    #     -U sa
-    #     -P "${DB_PASSWORD}"
-    #     -Q "SELECT 1"
-    #   interval: 5s
-    #   timeout: 5s
-    #   retries: 10
-    #   start_period: 6s
+
 
 
   viren.api:
@@ -71,6 +60,10 @@ services:
       - Email__Smtp__Username=${Email__Smtp__Username}
       - Email__Smtp__Password=${Email__Smtp__Password}
       - Email__Smtp__From=${Email__Smtp__From}
+  
+      - MessageBrokerSettings__Host=amqp://ecommerce-mq:5672
+      - MessageBrokerSettings__UserName=guest
+      - MessageBrokerSettings__Password=guest
 
     ports:
       - "7048:8081"
@@ -84,5 +77,118 @@ services:
     depends_on:
       mssql:
         condition: service_healthy
+      messagebroker:
+          condition: service_healthy
+
+  postgres:
+    container_name: coversation-data-postgres
+    environment:
+      - POSTGRES_DB=${PG_DB:-viren_langgraph}
+      - POSTGRES_USER=${PG_USER:-viren}
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-viren_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-viren} -d ${PG_DB:-viren_langgraph}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  messagebroker:
+    container_name: messagebroker
+    hostname: ecommerce-mq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+        test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+        interval: 5s
+        timeout: 5s
+        retries: 10
+        start_period: 10s
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chroma
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      # telemetry tắt cho gọn (tuỳ image/version, nếu không support thì bỏ dòng này)
+      - ANONYMIZED_TELEMETRY=FALSE
+    volumes:
+      - chroma_data:/chroma/chroma
+    # healthcheck:
+    #   test: ["CMD-SHELL", "wget -qO- http://localhost:8000/api/v2/heartbeat || exit 1"]
+    #   interval: 5s
+    #   timeout: 5s
+    #   retries: 10
+    #   start_period: 7s
+
+
+
+  # =====================
+  # Python Agents (FastAPI)
+  # =====================
+  viren.agents:
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+
+      - LANGSMITH_TRACING=${LANGSMITH_TRACING}
+      - LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
+
+      # Vector DB
+      - VECTOR_PROVIDER=${VECTOR_PROVIDER}
+      - CHROMA_URL=http://chroma:8000
+      - CHROMA_COLLECTION=${CHROMA_COLLECTION}
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+
+      # Embedding
+      - EMBED_MODEL=${EMBED_MODEL}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL}
+
+
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+
+      # RabbitMQ (dùng hostname ecommerce-mq trong compose)
+      - RABBITMQ_URL=amqp://guest:guest@ecommerce-mq:5672/
+      - VECTOR_INDEX_QUEUE=${VECTOR_INDEX_QUEUE}
+
+      # JWT (nếu Python verify token)
+      - JWT_SECRET=${JWT_SECRET_KEY}
+      - JWT_ISSUER=${JWT_ISSUER}
+      - JWT_AUDIENCE=${JWT_AUDIENCE}
+
+      # Postgres (đổi localhost -> postgres service)
+      - PG_URI=postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/${PG_DB}?sslmode=disable
+
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      messagebroker:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+
+
 volumes:
   mssql_data:
+  postgres_data:
+  chroma_data:

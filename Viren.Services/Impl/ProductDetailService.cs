@@ -19,8 +19,8 @@ namespace Viren.Services.Impl
 {
     public class ProductDetailService : IProductDetailService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IS3Storage _storage;
+        protected readonly IUnitOfWork _unitOfWork;
+        protected readonly IS3Storage _storage;
 
         public ProductDetailService(IUnitOfWork unitOfWork, IS3Storage storage)
         {
@@ -29,7 +29,7 @@ namespace Viren.Services.Impl
         }
 
         //Create product detail
-        public async Task<ResponseData<Guid>> CreateProductDetailAsync(ProductDetailRequestDto request, CancellationToken cancellationToken = default)
+        public virtual async Task<ResponseData<Guid>> CreateProductDetailAsync(ProductDetailRequestDto request, CancellationToken cancellationToken = default)
         {
             var productDetailRepo = _unitOfWork.GetRepository<ProductDetail, Guid>();
 
@@ -83,7 +83,7 @@ namespace Viren.Services.Impl
         }
 
         //Delete product detail
-        public async Task<ServiceResponse> DeleteProductDetailAsync(Guid id, CancellationToken cancellationToken = default)
+        public virtual async Task<ServiceResponse> DeleteProductDetailAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var productDetailRepo = _unitOfWork.GetRepository<ProductDetail, Guid>();
 
@@ -347,7 +347,7 @@ namespace Viren.Services.Impl
         }
 
         //Update product detail
-        public async Task<ServiceResponse> UpdateProductDetailAsync(Guid id, ProductDetailRequestDto request, CancellationToken cancellationToken = default)
+        public virtual async Task<ServiceResponse> UpdateProductDetailAsync(Guid id, ProductDetailRequestDto request, CancellationToken cancellationToken = default)
         {
             var productDetailRepo = _unitOfWork.GetRepository<ProductDetail, Guid>();
 

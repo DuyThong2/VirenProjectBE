@@ -35,7 +35,7 @@ namespace Viren.Services.Impl
         }
 
         // Create new product
-        public async Task<ResponseData<Guid>> CreateProductAsync(ProductRequestDto request, CancellationToken cancellationToken = default)
+        public virtual async Task<ResponseData<Guid>> CreateProductAsync(ProductRequestDto request, CancellationToken cancellationToken = default)
         {
             var productRepository = _unitOfWork.GetRepository<Product, Guid>();
 
@@ -78,7 +78,7 @@ namespace Viren.Services.Impl
             };
         }
 
-        public async Task<ServiceResponse> DeleteProductAsync(Guid id, CancellationToken cancellationToken = default)
+        public virtual async Task<ServiceResponse> DeleteProductAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var productRepository = _unitOfWork.GetRepository<Product, Guid>();
 
@@ -357,7 +357,7 @@ namespace Viren.Services.Impl
             };
         }
 
-        public async Task<ServiceResponse> UpdateProductAsync(Guid id, ProductRequestDto request, CancellationToken cancellationToken = default)
+        public virtual async Task<ServiceResponse> UpdateProductAsync(Guid id, ProductRequestDto request, CancellationToken cancellationToken = default)
         {
             var productRepository = _unitOfWork.GetRepository<Product, Guid>();
 

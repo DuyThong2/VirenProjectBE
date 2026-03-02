@@ -4,3 +4,18 @@ services:
     build:
       context: .
       dockerfile: Viren.API/Dockerfile
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+
+  postgres:
+    image: postgres:16-alpine
+
+  messagebroker:
+    image: rabbitmq:management
+  
+  chroma:
+    image: chromadb/chroma:latest
+
+  viren.agents:
+    image: duythong2/virenagents:${AGENTS_TAG:-latest}
