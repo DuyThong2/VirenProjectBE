@@ -40,7 +40,7 @@ namespace Viren.Services.Impl
             var productRepository = _unitOfWork.GetRepository<Product, Guid>();
 
             var existed = await productRepository.Query()
-                .AnyAsync(x => x.Name == request.Name, cancellationToken);
+                .AnyAsync(x => x.Name == request.Name && x.Status != CommonStatus.Deleted, cancellationToken);
 
             if (existed)
             {
@@ -85,7 +85,7 @@ namespace Viren.Services.Impl
             var product = await productRepository
                 .Query()
                 .AsTracking()
-                .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == id && x.Status != CommonStatus.Deleted, cancellationToken);
 
             if (product == null)
             {
@@ -115,7 +115,7 @@ namespace Viren.Services.Impl
             IQueryable<Product> query = productRepository.Query().AsNoTracking();
 
             var product = await query
-                .Where(p => p.Id == productId)
+                .Where(p => p.Id == productId && p.Status != CommonStatus.Deleted)
                 .Select(p => new ProductWithDetailResponse
                 {
                     Id = p.Id,
@@ -165,7 +165,8 @@ namespace Viren.Services.Impl
 
             IQueryable<Product> query = productRepository
                 .Query()
-                .AsNoTracking();
+                .AsNoTracking()
+                .Where(p => p.Status != CommonStatus.Deleted);
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(request.Search))
@@ -188,6 +189,10 @@ namespace Viren.Services.Impl
                     "status" => ascending ? query.OrderBy(p => p.Status) : query.OrderByDescending(p => p.Status),
                     _ => query.OrderByDescending(p => p.CreatedAt),
                 };
+            }
+            else
+            {
+                query = query.OrderByDescending(p => p.CreatedAt);
             }
 
 
@@ -230,8 +235,8 @@ namespace Viren.Services.Impl
             IQueryable<Product> query = categoryRepository
                 .Query()
                 .AsNoTracking()
-                .Where(c => request.CategoryId == null || c.Id == request.CategoryId)
-                .SelectMany(c => c.Products);
+                .Where(c => request.CategoryId == null || (c.Id == request.CategoryId && c.Status != CommonStatus.Deleted))
+                .SelectMany(c => c.Products.Where(p => p.Status != CommonStatus.Deleted));
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(request.Search))
@@ -308,7 +313,7 @@ namespace Viren.Services.Impl
             var product = await productRepository
                 .Query()
                 .AsTracking()
-                .FirstOrDefaultAsync(x => x.Id == productId);
+                .FirstOrDefaultAsync(x => x.Id == productId, ct);
 
             if (product == null)
             {
@@ -364,7 +369,7 @@ namespace Viren.Services.Impl
             var product = await productRepository
                 .Query()
                 .AsTracking()
-                .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == id && x.Status != CommonStatus.Deleted, cancellationToken);
 
             if (product == null)
             {
@@ -377,7 +382,7 @@ namespace Viren.Services.Impl
 
             var existed = await productRepository
                 .Query()
-                .AnyAsync(x => x.Name == request.Name && x.Id != id, cancellationToken);
+                .AnyAsync(x => x.Name == request.Name && x.Id != id && x.Status != CommonStatus.Deleted, cancellationToken);
 
             if (existed)
             {
