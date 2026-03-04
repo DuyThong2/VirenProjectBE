@@ -13,6 +13,7 @@ using Viren.Services.ApiResponse;
 using Viren.Services.Dtos.Requests;
 using Viren.Services.Dtos.Response;
 using Viren.Services.Interfaces;
+using Viren.Repositories.Enums;
 
 
 namespace Viren.Services.Impl
@@ -35,7 +36,7 @@ namespace Viren.Services.Impl
 
             //Kiểm tra chi tiết sản phẩm đã tồn tại chưa
             var existed = await productDetailRepo.Query()
-                .AnyAsync(x => x.ProductId == request.ProductId && x.Size == request.Size && x.Color == request.Color, cancellationToken);
+                .AnyAsync(x => x.ProductId == request.ProductId && x.Size == request.Size && x.Color == request.Color && x.Status != CommonStatus.Deleted, cancellationToken);
             if (existed)
             {
                 return new ResponseData<Guid>
@@ -90,7 +91,7 @@ namespace Viren.Services.Impl
             var productDetail = await productDetailRepo
                 .Query()
                 .AsTracking()
-                .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == id && x.Status != CommonStatus.Deleted, cancellationToken);
 
             if (productDetail == null)
             {
@@ -101,13 +102,14 @@ namespace Viren.Services.Impl
                 };
             }
 
-            await productDetailRepo.RemoveAsync(productDetail, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
+            productDetail.Status = CommonStatus.Deleted;
+            productDetail.UpdatedAt = DateTime.UtcNow;
+            var rows = await _unitOfWork.SaveChangesAsync(cancellationToken);
+            Console.WriteLine(rows);
             return new ServiceResponse
             {
                 Succeeded = true,
-                Message = "Xóa chi tiết sản phẩm thành công!"
+                Message = $"rows = {rows}"
             };
         }
 
@@ -119,7 +121,8 @@ namespace Viren.Services.Impl
             var query = productDetailRepo
                 .Query()
                 .Include(pd => pd.Product)
-                .AsNoTracking();
+                .AsNoTracking()
+                .Where(px => px.Status != CommonStatus.Deleted);
 
             // Filter by ProductId
             if (request.ProductId.HasValue)
@@ -191,7 +194,7 @@ namespace Viren.Services.Impl
 
             var productDetail = await productDetailRepo.Query()
                 .AsNoTracking()
-                .Where(p => p.Id == id)
+                .Where(p => p.Id == id && p.Status != CommonStatus.Deleted)
                 .Select(p => new ProductDetailResponseDto
                 {
                     Id = p.Id,
@@ -366,7 +369,10 @@ namespace Viren.Services.Impl
             }
 
             var existed = await productDetailRepo.Query()
-                .AnyAsync(x => x.Id != id && x.ProductId == request.ProductId && x.Size == request.Size && x.Color == request.Color, cancellationToken);
+                .AnyAsync(x => x.Id != id && x.ProductId == request.ProductId
+                            && x.Size == request.Size.Trim().ToUpper()
+                            && x.Color.ToLower() == request.Color.Trim().ToLower()
+                            && x.Status != CommonStatus.Deleted);
 
             if (existed)
             {
