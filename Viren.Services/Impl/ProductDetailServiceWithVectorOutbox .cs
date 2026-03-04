@@ -1,11 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 using Viren.Repositories.Domains;
 using Viren.Repositories.Enums;
 using Viren.Repositories.Interfaces;
 using Viren.Repositories.Storage.Bucket;
+using Viren.Repositories.Utils;
 using Viren.Services.ApiResponse;
 using Viren.Services.Dtos.Requests;
+using Viren.Services.Dtos.Response;
 using Viren.Services.IntegrationEvents;
 using Viren.Services.Interfaces;
 using Viren.Services.Outbox;
@@ -228,6 +231,101 @@ namespace Viren.Services.Impl
 
                 UpdatedAtUtc = detail.UpdatedAt,
                 SchemaVersion = 1
+            };
+        }
+
+        public override async Task<ReconcileResponseDto> ReconcileProductDetailThumbnailAsync(
+    Guid productDetailId,
+    string? keepJson,
+    List<IFormFile>? files,
+    string? meta,
+    CancellationToken ct)
+        {
+            var productDetailRepo = _unitOfWork.GetRepository<ProductDetail, Guid>();
+            var productRepo = _unitOfWork.GetRepository<Product, Guid>();
+            var outboxRepo = _unitOfWork.GetRepository<OutboxEvent, Guid>();
+
+            // 1) Load detail (tracking) để update Images
+            var productDetail = await productDetailRepo
+                .Query()
+                .AsTracking()
+                .FirstOrDefaultAsync(x => x.Id == productDetailId, ct);
+
+            if (productDetail == null)
+                throw new Exception("Product detail not found");
+
+            // 2) reconcile ảnh như bạn đang làm
+            var keep = FileRefUtils.ParseAny(keepJson);
+
+            var uploaded = (files is { Count: > 0 })
+                ? await _storage.UploadAsync(files!, ct)
+                : Array.Empty<UploadedFileDto>();
+
+            List<FileRefDto> desired;
+
+            if (uploaded.Count == 0)
+            {
+                desired = FileRefUtils.Distinct(keep);
+            }
+            else
+            {
+                var newRefs = FileRefUtils.FromUploaded(uploaded);
+                desired = FileRefUtils.Distinct(keep.Concat(newRefs));
+            }
+
+            if ((keep == null || keep.Count == 0) && uploaded.Count == 0)
+            {
+                productDetail.Images = null;
+            }
+            else
+            {
+                desired = desired
+                    .Where(d =>
+                        !string.IsNullOrWhiteSpace(d.Key) ||
+                        (!string.IsNullOrWhiteSpace(d.Url) && d.Url != "[]"))
+                    .ToList();
+
+                productDetail.Images = desired.Count == 0 ? null : FileRefUtils.ToJson(desired);
+            }
+
+            // 3) set UpdatedAt để vector biết record mới
+            var nowUtc = DateTime.UtcNow;
+            productDetail.UpdatedAt = nowUtc;
+
+            // 4) Load product để build payload giống Upsert
+            var product = await productRepo.Query()
+                .AsNoTracking()
+                .Include(p => p.Category)
+                .Include(p => p.ProductSales)
+                    .ThenInclude(ps => ps.Sale)
+                .FirstOrDefaultAsync(p => p.Id == productDetail.ProductId, ct);
+
+            if (product == null)
+                throw new Exception("Product not found");
+
+            // 5) Add outbox Upsert event (chung loại event với Update)
+            var evt = BuildUpsertEvent(product, productDetail, nowUtc);
+
+            await outboxRepo.AddAsync(
+                OutboxFactory.Create(
+                    aggregateType: "ProductDetail",
+                    aggregateId: productDetail.Id,
+                    eventType: IntegrationEventTypes.ProductDetailUpserted,
+                    payload: evt,
+                    correlationId: null,
+                    partitionKey: productDetail.ProductId.ToString(),
+                    schemaVersion: evt.SchemaVersion),
+                ct);
+
+            // 6) Commit 1 lần: update Images + insert OutboxEvent
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return new ReconcileResponseDto
+            {
+                ClaimId = productDetailId,
+                Desired = desired,
+                UploadedFiles = uploaded.ToList(),
+                Meta = meta
             };
         }
 

@@ -290,7 +290,7 @@ namespace Viren.Services.Impl
             };
         }
 
-        public async Task<ReconcileResponseDto> ReconcileProductDetailThumbnailAsync(Guid productDetailId, string? keepJson, List<IFormFile>? files, string? meta, CancellationToken ct)
+        public virtual async Task<ReconcileResponseDto> ReconcileProductDetailThumbnailAsync(Guid productDetailId, string? keepJson, List<IFormFile>? files, string? meta, CancellationToken ct)
         {
             var productDetailRepo = _unitOfWork.GetRepository<ProductDetail, Guid>();
 
