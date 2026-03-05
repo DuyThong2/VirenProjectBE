@@ -28,12 +28,18 @@ namespace Viren.Services.Impl
             _storage = storage;
         }
 
-        public async Task<ResponseData<Guid>> CreateCategoryAsync(CategoryRequestDto request, CancellationToken cancellationToken = default)
+        public async Task<ResponseData<Guid>> CreateCategoryAsync(
+            CategoryRequestDto request,
+            CancellationToken cancellationToken = default)
         {
             var categoryRepo = _unitOfWork.GetRepository<Category, Guid>();
 
+            // FIX: Loại trừ các category đã bị xóa mềm khi kiểm tra trùng tên
             var existed = await categoryRepo.Query()
-                .AnyAsync(x => x.Name.ToLower() == request.Name.Trim().ToLower(), cancellationToken);
+                .AnyAsync(x =>
+                    x.Name.ToLower() == request.Name.Trim().ToLower() &&
+                    x.Status != CommonStatus.Deleted,
+                    cancellationToken);
 
             if (existed)
             {
@@ -65,15 +71,19 @@ namespace Viren.Services.Impl
             };
         }
 
-        // Xóa cứng
-        public async Task<ServiceResponse> DeleteCategoryAsync(Guid id, CancellationToken cancellationToken = default)
+
+        // Xóa mềm
+        public async Task<ServiceResponse> DeleteCategoryAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
         {
             var categoryRepo = _unitOfWork.GetRepository<Category, Guid>();
 
+            // FIX: Thêm filter loại trừ đã xóa
             var category = await categoryRepo
                 .Query()
                 .AsTracking()
-                .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == id && x.Status != CommonStatus.Deleted, cancellationToken);
 
             if (category == null)
             {
@@ -84,7 +94,7 @@ namespace Viren.Services.Impl
                 };
             }
 
-            await categoryRepo.RemoveAsync(category, cancellationToken);
+            category.Status = CommonStatus.Deleted;
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new ServiceResponse
@@ -93,12 +103,17 @@ namespace Viren.Services.Impl
                 Message = "Xóa danh mục thành công!"
             };
         }
-   
-        public async Task<PaginatedResponse<CategoryResponseDto>> GetAllCategoryAsync(GetCategoryPaginatedRequest request, CancellationToken cancellationToken = default)
+
+        public async Task<PaginatedResponse<CategoryResponseDto>> GetAllCategoryAsync(
+            GetCategoryPaginatedRequest request,
+            CancellationToken cancellationToken = default)
         {
             var categoryRepo = _unitOfWork.GetRepository<Category, Guid>();
 
-            IQueryable<Category> query = categoryRepo.Query().AsNoTracking();
+            // FIX: Mặc định loại trừ category đã xóa mềm
+            IQueryable<Category> query = categoryRepo.Query()
+                .AsNoTracking()
+                .Where(c => c.Status != CommonStatus.Deleted);
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
@@ -109,9 +124,10 @@ namespace Viren.Services.Impl
             var totalItems = await query.CountAsync(cancellationToken);
 
             var categories = await query
+                // FIX: Sắp xếp tăng dần theo tên cho hợp lý hơn
+                .OrderBy(c => c.Name)
                 .Skip((request.Page - 1) * request.PageSize)
                 .Take(request.PageSize)
-                .OrderByDescending(c => c.Name)
                 .Select(c => new CategoryResponseDto
                 {
                     Id = c.Id,
@@ -140,7 +156,7 @@ namespace Viren.Services.Impl
 
             var category = await categoryRepo.Query()
                 .AsNoTracking()
-                .Where(x => x.Id == id)
+                .Where(x => x.Id == id && x.Status != CommonStatus.Deleted)
                 .Select(x => new CategoryResponseDto
                 {
                     Id = x.Id,
@@ -176,6 +192,7 @@ namespace Viren.Services.Impl
             var categories = await categoryRepository
                 .Query()
                 .AsNoTracking()
+                .Where(c => c.Status != CommonStatus.Deleted)
                 .Select(c => new CategoryResponseDto
                 {
                     Id = c.Id,
@@ -250,14 +267,17 @@ namespace Viren.Services.Impl
             };
         }
 
-        public async Task<ServiceResponse> UpdateCategoryAsync(Guid id, CategoryRequestDto request, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse> UpdateCategoryAsync(
+            Guid id,
+            CategoryRequestDto request,
+            CancellationToken cancellationToken = default)
         {
             var categoryRepo = _unitOfWork.GetRepository<Category, Guid>();
 
             var category = await categoryRepo
                 .Query()
                 .AsTracking()
-                .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == id && x.Status != CommonStatus.Deleted, cancellationToken); // ✅ Lọc deleted
 
             if (category == null)
             {
@@ -268,8 +288,13 @@ namespace Viren.Services.Impl
                 };
             }
 
+            // ✅ Fix #6 tương tự: Bỏ qua bản ghi đã xóa khi check trùng tên
             var existed = await categoryRepo.Query()
-                .AnyAsync(x => x.Name.ToLower() == request.Name.Trim().ToLower() && x.Id != id, cancellationToken);
+                .AnyAsync(x =>
+                    x.Name.ToLower() == request.Name.Trim().ToLower()
+                    && x.Id != id
+                    && x.Status != CommonStatus.Deleted,
+                    cancellationToken);
 
             if (existed)
             {
@@ -286,7 +311,6 @@ namespace Viren.Services.Impl
             category.Header = request.Header?.Trim();
             category.Status = request.Status;
 
-            //categoryRepo.Update(category);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new ServiceResponse
@@ -295,6 +319,6 @@ namespace Viren.Services.Impl
                 Message = "Cập nhật danh mục thành công!"
             };
         }
-        
+
     }
 }
