@@ -14,6 +14,23 @@ namespace Viren.Services.Impl;
 
 public sealed class OrderService : IOrderService
 {
+    private const string ErrOrderNotFound = "Không tìm thấy đơn hàng.";
+    private const string ErrInvalidOrderStatus = "Trạng thái đơn hàng không hợp lệ.";
+    private const string ErrInvalidStatusTransition = "Không thể chuyển trạng thái đơn hàng theo loại thanh toán đã chọn.";
+
+    private static readonly HashSet<(OrderStatus From, OrderStatus To)> CodTransitions =
+    [
+        (OrderStatus.Pending, OrderStatus.Shipping),
+        (OrderStatus.Shipping, OrderStatus.Completed)
+    ];
+
+    private static readonly HashSet<(OrderStatus From, OrderStatus To)> OnlineTransitions =
+    [
+        (OrderStatus.Pending, OrderStatus.Paid),
+        (OrderStatus.Paid, OrderStatus.Shipping),
+        (OrderStatus.Shipping, OrderStatus.Completed)
+    ];
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<OrderService> _logger;
 
@@ -23,10 +40,6 @@ public sealed class OrderService : IOrderService
         _logger = logger;
     }
 
-    /// <summary>
-    /// Đánh dấu đơn hàng đã thanh toán thành công
-    /// (được gọi từ PaymentService / Webhook)
-    /// </summary>
     public async Task<ServiceResponse> MarkOrderPaidAsync(Guid orderId, CancellationToken ct = default)
     {
         var orderRepo = _unitOfWork.GetRepository<Order, Guid>();
@@ -37,28 +50,18 @@ public sealed class OrderService : IOrderService
 
         if (order == null)
         {
-            return new ServiceResponse
-            {
-                Succeeded = false,
-                Message = "Không tìm thấy đơn hàng."
-            };
+            return new ServiceResponse { Succeeded = false, Message = ErrOrderNotFound };
         }
 
         if (order.Status != OrderStatus.Pending)
         {
-            return new ServiceResponse
-            {
-                Succeeded = false,
-                Message = "Trạng thái đơn hàng không hợp lệ."
-            };
+            return new ServiceResponse { Succeeded = false, Message = ErrInvalidOrderStatus };
         }
 
         try
         {
-            // 1️⃣ Update Order
             order.Status = OrderStatus.Paid;
 
-            // 2️⃣ Update Payment (nếu có)
             if (order.Payment != null)
             {
                 order.Payment.Status = PaymentStatus.Success;
@@ -70,32 +73,23 @@ public sealed class OrderService : IOrderService
 
             _logger.LogInformation("Order {OrderId} marked as Paid", orderId);
 
-            return new ServiceResponse
-            {
-                Succeeded = true,
-                Message = "Thanh toán đơn hàng thành công."
-            };
+            return new ServiceResponse { Succeeded = true, Message = "Thanh toán đơn hàng thành công." };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to mark order paid {OrderId}", orderId);
 
             if (order.Payment != null)
+            {
                 order.Payment.Status = PaymentStatus.Failed;
+            }
 
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return new ServiceResponse
-            {
-                Succeeded = false,
-                Message = "Xử lý thanh toán thất bại."
-            };
+            return new ServiceResponse { Succeeded = false, Message = "Xử lý thanh toán thất bại." };
         }
     }
 
-    /// <summary>
-    /// Đánh dấu đơn hàng bị hủy
-    /// </summary>
     public async Task<ServiceResponse> MarkOrderCancelledAsync(Guid orderId, CancellationToken ct = default)
     {
         var orderRepo = _unitOfWork.GetRepository<Order, Guid>();
@@ -106,20 +100,12 @@ public sealed class OrderService : IOrderService
 
         if (order == null)
         {
-            return new ServiceResponse
-            {
-                Succeeded = false,
-                Message = "Không tìm thấy đơn hàng."
-            };
+            return new ServiceResponse { Succeeded = false, Message = ErrOrderNotFound };
         }
 
         if (order.Status != OrderStatus.Pending)
         {
-            return new ServiceResponse
-            {
-                Succeeded = false,
-                Message = "Trạng thái đơn hàng không hợp lệ."
-            };
+            return new ServiceResponse { Succeeded = false, Message = ErrInvalidOrderStatus };
         }
 
         try
@@ -137,27 +123,143 @@ public sealed class OrderService : IOrderService
 
             _logger.LogInformation("Order {OrderId} cancelled", orderId);
 
-            return new ServiceResponse
-            {
-                Succeeded = true,
-                Message = "Đơn hàng đã bị hủy."
-            };
+            return new ServiceResponse { Succeeded = true, Message = "Đơn hàng đã bị hủy." };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to cancel order {OrderId}", orderId);
 
             if (order.Payment != null)
+            {
                 order.Payment.Status = PaymentStatus.Failed;
+            }
 
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return new ServiceResponse { Succeeded = false, Message = "Hủy đơn hàng thất bại." };
+        }
+    }
+
+    public async Task<ServiceResponse> UpdateOrderStatusAsync(Guid orderId, UpdateOrderStatusRequestDto request, CancellationToken ct = default)
+    {
+        var orderRepo = _unitOfWork.GetRepository<Order, Guid>();
+        var paymentRepo = _unitOfWork.GetRepository<Payment, Guid>();
+
+        var order = await orderRepo.Query()
+            .Include(o => o.Payment)
+            .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+
+        if (order == null)
+        {
+            return new ServiceResponse { Succeeded = false, Message = ErrOrderNotFound };
+        }
+
+        if (order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Completed)
+        {
+            return new ServiceResponse { Succeeded = false, Message = ErrInvalidOrderStatus };
+        }
+
+        if (!IsValidStatusTransition(order.Status, request.TargetStatus, request.PaymentType))
+        {
+            return new ServiceResponse { Succeeded = false, Message = ErrInvalidStatusTransition };
+        }
+
+        try
+        {
+            order.Status = request.TargetStatus;
+
+            if (request.PaymentType == PaymentType.Cod)
+            {
+                if (order.Payment == null)
+                {
+                    order.Payment = new Payment
+                    {
+                        Id = Guid.NewGuid(),
+                        OrderId = order.Id,
+                        PaymentType = PaymentType.Cod,
+                        Amount = order.TotalAmount,
+                        Status = request.TargetStatus == OrderStatus.Paid ? PaymentStatus.Success : PaymentStatus.Pending,
+                        CreatedAt = DateTime.UtcNow,
+                        VerifiedAt = request.TargetStatus == OrderStatus.Paid
+                            ? TimeConverter.GetCurrentVietNamTime().DateTime
+                            : null,
+                        UserId = order.UserId
+                    };
+
+                    await paymentRepo.AddAsync(order.Payment, ct);
+                }
+                else
+                {
+                    order.Payment.PaymentType = PaymentType.Cod;
+                    order.Payment.Amount = order.TotalAmount;
+                    order.Payment.Status = request.TargetStatus == OrderStatus.Paid ? PaymentStatus.Success : PaymentStatus.Pending;
+                    order.Payment.VerifiedAt = request.TargetStatus == OrderStatus.Paid
+                        ? TimeConverter.GetCurrentVietNamTime().DateTime
+                        : null;
+
+                    await paymentRepo.UpdateAsync(order.Payment, ct);
+                }
+            }
+            else if (request.PaymentType == PaymentType.PayOs && request.TargetStatus == OrderStatus.Paid)
+            {
+                if (order.Payment == null)
+                {
+                    return new ServiceResponse
+                    {
+                        Succeeded = false,
+                        Message = "Đơn online chưa có thông tin payment, không thể chuyển Paid."
+                    };
+                }
+
+                order.Payment.PaymentType = PaymentType.PayOs;
+                order.Payment.Amount = order.TotalAmount;
+                order.Payment.Status = PaymentStatus.Success;
+                order.Payment.VerifiedAt = TimeConverter.GetCurrentVietNamTime().DateTime;
+
+                await paymentRepo.UpdateAsync(order.Payment, ct);
+            }
+
+            await orderRepo.UpdateAsync(order, ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
             return new ServiceResponse
             {
-                Succeeded = false,
-                Message = "Hủy đơn hàng thất bại."
+                Succeeded = true,
+                Message = "Cập nhật trạng thái đơn hàng thành công."
             };
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to update order status. OrderId={OrderId}, To={ToStatus}, PaymentType={PaymentType}",
+                orderId, request.TargetStatus, request.PaymentType);
+
+            return new ServiceResponse
+            {
+                Succeeded = false,
+                Message = "Cập nhật trạng thái đơn hàng thất bại."
+            };
+        }
+    }
+
+    private static bool IsValidStatusTransition(OrderStatus currentStatus, OrderStatus targetStatus, PaymentType paymentType)
+    {
+        if (currentStatus == targetStatus)
+        {
+            return true;
+        }
+
+        if (targetStatus == OrderStatus.Cancelled)
+        {
+            return currentStatus != OrderStatus.Completed;
+        }
+
+        return paymentType switch
+        {
+            PaymentType.Cod => CodTransitions.Contains((currentStatus, targetStatus)),
+            PaymentType.PayOs => OnlineTransitions.Contains((currentStatus, targetStatus)),
+            _ => false
+        };
     }
 
     public async Task<ResponseData<Guid>> CreateOrderAsync(OrderRequestDto request, CancellationToken cancellationToken)
@@ -226,11 +328,9 @@ public sealed class OrderService : IOrderService
                 };
             }
 
-            // snapshot giá tại thời điểm đặt hàng
             var price = productDetail.Product.Price;
             var lineTotal = price * item.Quantity;
 
-            // trừ kho
             productDetail.Stock -= item.Quantity;
 
             totalAmount += lineTotal;
@@ -266,18 +366,17 @@ public sealed class OrderService : IOrderService
             .Query()
             .AsNoTracking();
 
-        // Filter By Status
         if (request.StatusFilter.HasValue)
         {
             query = query.Where(o => o.Status == request.StatusFilter);
         }
-        // Filter by UserId
+
         if (request.UserId != Guid.Empty)
         {
             query = query.Where(o => o.UserId == request.UserId);
         }
 
-        if(!string.IsNullOrWhiteSpace(request.Search))
+        if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var searchLower = request.Search.Trim().ToLower();
             query = query.Where(o =>
@@ -311,7 +410,6 @@ public sealed class OrderService : IOrderService
                 Note = o.Note,
                 CreatedAt = o.CreatedAt,
                 Status = o.Status,
-                
             })
             .ToListAsync(cancellationToken);
 
@@ -328,9 +426,9 @@ public sealed class OrderService : IOrderService
 
     public async Task<ResponseData<OrderResponseDto>> GetOrderByIdAsync(Guid id, CancellationToken ct)
     {
-        var OrderRepo = _unitOfWork.GetRepository<Order, Guid>();
+        var orderRepo = _unitOfWork.GetRepository<Order, Guid>();
 
-        var order = await OrderRepo.Query()
+        var order = await orderRepo.Query()
             .AsNoTracking()
             .Include(o => o.User)
             .Include(o => o.OrderItems)
@@ -364,7 +462,7 @@ public sealed class OrderService : IOrderService
             return new ResponseData<OrderResponseDto>
             {
                 Succeeded = false,
-                Message = "Không tìm thấy đơn hàng."
+                Message = ErrOrderNotFound
             };
         }
 
@@ -385,12 +483,12 @@ public sealed class OrderService : IOrderService
             .AsTracking()
             .FirstOrDefault(o => o.Id == id);
 
-        if(order == null)
+        if (order == null)
         {
             return new ServiceResponse
             {
                 Succeeded = false,
-                Message = "Không tìm thấy đơn hàng."
+                Message = ErrOrderNotFound
             };
         }
 
