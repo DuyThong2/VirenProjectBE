@@ -22,6 +22,7 @@ public interface IAppDbContext
     DbSet<UserSubscription> UserSubscriptions { get; }
 
     DbSet<OutboxEvent> OutboxEvents { get; }
+    DbSet<FitRoomTask> FitRoomTasks { get; }
 
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

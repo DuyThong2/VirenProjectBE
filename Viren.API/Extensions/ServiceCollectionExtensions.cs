@@ -1,4 +1,5 @@
-﻿using Net.payOS;
+using Microsoft.Extensions.Options;
+using Net.payOS;
 using Viren.API.Services;
 using Viren.Repositories.Impl;
 using Viren.Repositories.Interfaces;
@@ -27,26 +28,31 @@ public static class ServiceCollectionExtensions
         builder.Services.AddScoped<ITokenRepository, TokenRepository>();
         builder.Services.AddScoped<IUserService, UserService>();
 
-        //builder.Services.AddScoped<IProductService, ProductService>();
         builder.Services.AddScoped<IProductService, ProductServiceWithVectorOutbox>();
-
-
         builder.Services.AddScoped<ICategoryService, CategoryService>();
-
-        //builder.Services.AddScoped<IProductDetailService, ProductDetailService>();
         builder.Services.AddScoped<IProductDetailService, ProductDetailServiceWithVectorOutbox>();
-
         builder.Services.AddScoped<IPaymentService, PaymentService>();
         builder.Services.AddScoped<IOrderService, OrderService>();
-
-        builder.Services.AddScoped<IPaymentService, PaymentService>();
         builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+        builder.Services.AddHttpClient<IFitRoomService, FitRoomService>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<FitRoomOptions>>().Value;
+            if (string.IsNullOrWhiteSpace(options.BaseUrl))
+            {
+                throw new InvalidOperationException("FitRoom:BaseUrl chưa được cấu hình.");
+            }
+
+            client.BaseAddress = new Uri($"{options.BaseUrl.TrimEnd('/')}/");
+            client.DefaultRequestHeaders.Remove("X-API-KEY");
+            if (!string.IsNullOrWhiteSpace(options.ApiKey))
+            {
+                client.DefaultRequestHeaders.Add("X-API-KEY", options.ApiKey);
+            }
+        });
 
         builder.Services.AddHostedService<OutboxPublisherWorker>();
 
-        // Publisher implementation (MassTransit)
         builder.Services.AddScoped<IEventBusPublisher, MassTransitEventBusPublisher>();
-
 
         builder.Services.AddControllers();
         builder.Services.AddRouting(o => o.LowercaseUrls = true);

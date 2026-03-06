@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Viren.Repositories;
+using Viren.Services.Configs;
 
 namespace Viren.API.Extensions;
 
@@ -7,8 +8,10 @@ public static class ApplicationBuilderExtensions
 {
     public static WebApplicationBuilder AddApplicationConfiguration(this WebApplicationBuilder builder)
     {
-        builder.Services.Configure<Viren.Services.Configs.PayOsSetings>(
+        builder.Services.Configure<PayOsSetings>(
             builder.Configuration.GetSection("PayOS"));
+        builder.Services.Configure<FitRoomOptions>(
+            builder.Configuration.GetSection("FitRoom"));
 
         return builder;
     }
