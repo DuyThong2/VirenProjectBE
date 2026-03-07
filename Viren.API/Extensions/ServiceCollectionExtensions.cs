@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
         builder.Services.AddScoped<IProductDetailService, ProductDetailServiceWithVectorOutbox>();
         builder.Services.AddScoped<IPaymentService, PaymentService>();
         builder.Services.AddScoped<IOrderService, OrderService>();
+        builder.Services.AddScoped<IDashboardService, DashboardService>();
         builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
         builder.Services.AddHttpClient<IFitRoomService, FitRoomService>((sp, client) =>
         {

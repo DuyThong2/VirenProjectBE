@@ -188,15 +188,15 @@ public sealed class PaymentService : IPaymentService
             "PayOS webhook processed. paymentId={PaymentId}, orderCode={OrderCode}, status={Status}",
             payment.Id, data.orderCode, status);
     }
-     
-     public async Task<ServiceResponse> CreatePaymentLinkByOrderAsync(PaymentRequest requestBody, CancellationToken ct = default)
+
+    public async Task<ServiceResponse> CreatePaymentLinkByOrderAsync(PaymentRequest requestBody, CancellationToken ct = default)
     {
         try
         {
             // 1) Load order
             var orderRepo = _unitOfWork.GetRepository<Order, Guid>();
             var order = await orderRepo.Query()
-                .Include(o => o.Payment) // nếu bạn có navigation 1-1
+                .Include(o => o.Payment) // navigation 1-1
                 .FirstOrDefaultAsync(o => o.Id == requestBody.OrderId, ct);
 
             if (order == null)
@@ -205,26 +205,24 @@ public sealed class PaymentService : IPaymentService
             }
 
             // 2) Lấy amount từ Order
-            // PayOS amount cần int (VND). Nếu TotalAmount là decimal, phải convert an toàn.
             if (order.TotalAmount <= 0)
-            {
                 return new ServiceResponse { Succeeded = false, Message = "Tổng tiền đơn hàng không hợp lệ!" };
-            }
 
             if (order.TotalAmount != decimal.Truncate(order.TotalAmount))
-            {
                 return new ServiceResponse { Succeeded = false, Message = "Số tiền phải là số nguyên (VND)!" };
-            }
 
             if (order.TotalAmount > int.MaxValue)
-            {
                 return new ServiceResponse { Succeeded = false, Message = "Số tiền quá lớn!" };
-            }
 
             var amount = checked((int)order.TotalAmount);
 
-            // 3) Nếu đã có payment pending → trả lại link cũ (không tạo mới)
-            if (order.Payment != null && order.Payment.Status == PaymentStatus.Pending && !string.IsNullOrWhiteSpace(order.Payment.QrCodeUrl))
+            // 3) Nếu đã có payment pending và chưa hết hạn → trả lại link cũ
+            var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (order.Payment != null
+                && order.Payment.Status == PaymentStatus.Pending
+                && !string.IsNullOrWhiteSpace(order.Payment.QrCodeUrl)
+                && order.Payment.ExpiredAt.HasValue
+                && order.Payment.ExpiredAt.Value > nowUnix + 30) // buffer 30s
             {
                 return new ResponseData<object>
                 {
@@ -244,16 +242,14 @@ public sealed class PaymentService : IPaymentService
             var orderCode = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
             var items = new List<ItemData>
-            {
-                new ItemData("Thanh toán đơn hàng", 1, amount)
-            };
+        {
+            new ItemData("Thanh toán đơn hàng", 1, amount)
+        };
 
             var expiredAt = TimeConverter.GetCurrentVietNamTime()
                 .AddSeconds(_payOsSetings.ExpirationSeconds)
                 .ToUnixTimeSeconds();
 
-            // 5) Return/Cancel trỏ về API của bạn để giả lập thành công/thất bại
-            // (bạn yêu cầu dùng orderId)
             var returnUrl = _payOsSetings.ReturnUrl + $"?orderId={order.Id}";
             var cancelUrl = _payOsSetings.CancelUrl + $"?orderId={order.Id}";
 
@@ -269,7 +265,7 @@ public sealed class PaymentService : IPaymentService
 
             var response = await _payOs.createPaymentLink(data);
 
-            // 6) Tạo Payment nếu chưa có, hoặc update Payment cũ
+            // 5) Tạo Payment nếu chưa có, hoặc update Payment cũ
             var paymentRepo = _unitOfWork.GetRepository<Payment, Guid>();
 
             if (order.Payment == null)
@@ -281,18 +277,17 @@ public sealed class PaymentService : IPaymentService
                     PaymentType = PaymentType.PayOs,
                     Amount = amount,
                     Status = PaymentStatus.Pending,
-                    QrCodeUrl = response.checkoutUrl,         // đang dùng field này để lưu checkoutUrl
-                    TransactionCode = orderCode.ToString(),   // map orderCode để webhook về sau
+                    QrCodeUrl = response.checkoutUrl,
+                    TransactionCode = orderCode.ToString(),
                     CreatedAt = DateTime.UtcNow,
                     VerifiedAt = null,
+                    ExpiredAt = expiredAt,
                     UserId = order.UserId
                 };
-
                 await paymentRepo.AddAsync(order.Payment, ct);
             }
             else
             {
-                // Nếu payment tồn tại nhưng không pending hoặc thiếu link → tạo lại link và set pending
                 order.Payment.PaymentType = PaymentType.PayOs;
                 order.Payment.Amount = amount;
                 order.Payment.Status = PaymentStatus.Pending;
@@ -300,6 +295,7 @@ public sealed class PaymentService : IPaymentService
                 order.Payment.TransactionCode = orderCode.ToString();
                 order.Payment.CreatedAt = DateTime.UtcNow;
                 order.Payment.VerifiedAt = null;
+                order.Payment.ExpiredAt = expiredAt;
                 order.Payment.UserId = order.UserId;
 
                 await paymentRepo.UpdateAsync(order.Payment, ct);

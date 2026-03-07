@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Viren.Repositories;
 
@@ -11,9 +12,11 @@ using Viren.Repositories;
 namespace Viren.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260307080435_UpdateOrderPayment")]
+    partial class UpdateOrderPayment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -190,109 +193,6 @@ namespace Viren.Repositories.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("category", (string)null);
-                });
-
-            modelBuilder.Entity("Viren.Repositories.Domains.FitRoomTask", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("fitroomTaskId");
-
-                    b.Property<string>("ClothImageKey")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("clothImageKey");
-
-                    b.Property<string>("ClothImageUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("clothImageUrl");
-
-                    b.Property<string>("ClothType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("clothType");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("completedAt");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("createdAt");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("errorMessage");
-
-                    b.Property<string>("FitRoomTaskId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("remoteTaskId");
-
-                    b.Property<bool>("HdMode")
-                        .HasColumnType("bit")
-                        .HasColumnName("hdMode");
-
-                    b.Property<DateTime>("LastSyncedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("lastSyncedAt");
-
-                    b.Property<string>("LatestResponseJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("latestResponseJson");
-
-                    b.Property<string>("LowerClothImageKey")
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("lowerClothImageKey");
-
-                    b.Property<string>("LowerClothImageUrl")
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("lowerClothImageUrl");
-
-                    b.Property<string>("ModelImageKey")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("modelImageKey");
-
-                    b.Property<string>("ModelImageUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("modelImageUrl");
-
-                    b.Property<int?>("Progress")
-                        .HasColumnType("int")
-                        .HasColumnName("progress");
-
-                    b.Property<string>("ResultUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("resultUrl");
-
-                    b.Property<DateTime?>("StartedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("startedAt");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("status");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("userId");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FitRoomTaskId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_fitroom_task_remoteTaskId");
-
-                    b.HasIndex("UserId", "CreatedAt")
-                        .HasDatabaseName("IX_fitroom_task_userId_createdAt");
-
-                    b.ToTable("fitroom_task", (string)null);
                 });
 
             modelBuilder.Entity("Viren.Repositories.Domains.Order", b =>
@@ -932,16 +832,6 @@ namespace Viren.Repositories.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Viren.Repositories.Domains.FitRoomTask", b =>
-                {
-                    b.HasOne("Viren.Repositories.Domains.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Viren.Repositories.Domains.Order", b =>

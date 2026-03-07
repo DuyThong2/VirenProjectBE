@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Viren.Repositories.Domains;
 using Viren.Repositories.Enums;
 
 namespace Viren.Services.Dtos.Response
@@ -16,6 +17,8 @@ namespace Viren.Services.Dtos.Response
         public string? Note { get; set; }
         public DateTime CreatedAt { get; set; }
         public OrderStatus Status { get; set; }
+
+        public PaymentDtoResponse ? Payment { get; set; }
         public List<OrderItemResponseDto> Items { get; set; } = new();
     }
 
