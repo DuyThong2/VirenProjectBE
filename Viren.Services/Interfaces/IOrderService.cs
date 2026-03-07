@@ -13,6 +13,7 @@ public interface IOrderService
     //Task<ServiceResponse> DeleteOrderAsync(Guid id, CancellationToken ct);
 
     Task<ServiceResponse> UpdateOrderAsync(Guid orderId, OrderRequestDto request, CancellationToken ct);
+    Task<ServiceResponse> UpdateOrderStatusAsync(Guid orderId, UpdateOrderStatusRequestDto request, CancellationToken ct = default);
     Task<ServiceResponse> MarkOrderPaidAsync(Guid orderId, CancellationToken ct = default);
     Task<ServiceResponse> MarkOrderCancelledAsync(Guid orderId, CancellationToken ct = default);
 

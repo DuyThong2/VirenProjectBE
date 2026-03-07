@@ -478,7 +478,7 @@ namespace Viren.Services.Impl
                     .ThenInclude(pd => pd.Product);
 
             var result = await query
-                .Where(x => x.Order.Status == OrderStatus.Paid || x.Order.Status == OrderStatus.Completed)
+                .Where(x => x.Order.Status == OrderStatus.Paid || x.Order.Status == OrderStatus.Completed || x.Order.Status == OrderStatus.Shipping)
                 .GroupBy(x => new
                 {
                     x.ProductDetail.Product.Id,
