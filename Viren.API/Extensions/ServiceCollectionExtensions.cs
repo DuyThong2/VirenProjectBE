@@ -38,6 +38,8 @@ public static class ServiceCollectionExtensions
 
         builder.Services.AddScoped<IPaymentService, PaymentService>();
         builder.Services.AddScoped<IOrderService, OrderService>();
+        builder.Services.AddScoped<IDashboardService, DashboardService>();
+
 
         builder.Services.AddScoped<IPaymentService, PaymentService>();
         builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
