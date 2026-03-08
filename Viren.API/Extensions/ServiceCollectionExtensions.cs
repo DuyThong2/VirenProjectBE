@@ -50,6 +50,21 @@ public static class ServiceCollectionExtensions
                 client.DefaultRequestHeaders.Add("X-API-KEY", options.ApiKey);
             }
         });
+        builder.Services.AddHttpClient<IMeshyService, MeshyService>((sp, client) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+
+            var apiKey = config["Meshy:ApiKey"];
+            var baseUrl = config["Meshy:BaseUrl"];
+
+            client.BaseAddress = new Uri(baseUrl);
+
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+
+            client.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        });
 
         builder.Services.AddHostedService<OutboxPublisherWorker>();
 

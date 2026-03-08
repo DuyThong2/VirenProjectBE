@@ -23,6 +23,7 @@ public interface IAppDbContext
 
     DbSet<OutboxEvent> OutboxEvents { get; }
     DbSet<FitRoomTask> FitRoomTasks { get; }
+    DbSet<MeshyTask> FitRoomTaskResults { get; }
 
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
