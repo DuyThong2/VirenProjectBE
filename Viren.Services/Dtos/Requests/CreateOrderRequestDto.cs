@@ -12,6 +12,8 @@ namespace Viren.Services.Dtos.Requests
         public Guid UserId { get; set; }
         public string ShippingAddress { get; set; } = null!;
         public string? Note { get; set; }
+
+        public PaymentType PaymentType { get; set; }
         public List<CreateOrderItemDto> Items { get; set; } = new();
     }
 

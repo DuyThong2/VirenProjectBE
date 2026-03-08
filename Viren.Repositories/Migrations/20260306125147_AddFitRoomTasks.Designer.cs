@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Viren.Repositories;
 
@@ -11,9 +12,11 @@ using Viren.Repositories;
 namespace Viren.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260306125147_AddFitRoomTasks")]
+    partial class AddFitRoomTasks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -295,105 +298,6 @@ namespace Viren.Repositories.Migrations
                     b.ToTable("fitroom_task", (string)null);
                 });
 
-            modelBuilder.Entity("Viren.Repositories.Domains.MeshyTask", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("meshyTaskId");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("completedAt");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("createdAt");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("errorMessage");
-
-                    b.Property<Guid>("FitRoomTaskId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("fitroomTaskId");
-
-                    b.Property<DateTime>("LastSyncedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("lastSyncedAt");
-
-                    b.Property<string>("LatestResponseJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("latestResponseJson");
-
-                    b.Property<string>("MeshyTaskId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("remoteTaskId");
-
-                    b.Property<string>("ModelFbxUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("modelFbxUrl");
-
-                    b.Property<string>("ModelGlbUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("modelGlbUrl");
-
-                    b.Property<string>("ModelObjUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("modelObjUrl");
-
-                    b.Property<string>("ModelUsdzUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("modelUsdzUrl");
-
-                    b.Property<int?>("Progress")
-                        .HasColumnType("int")
-                        .HasColumnName("progress");
-
-                    b.Property<DateTime?>("StartedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("startedAt");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("status");
-
-                    b.Property<string>("TextureBaseColorUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("textureBaseColorUrl");
-
-                    b.Property<string>("TextureMetallicUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("textureMetallicUrl");
-
-                    b.Property<string>("TextureNormalUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("textureNormalUrl");
-
-                    b.Property<string>("TextureRoughnessUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("textureRoughnessUrl");
-
-                    b.Property<string>("ThumbnailUrl")
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("thumbnailUrl");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FitRoomTaskId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_meshy_task_fitroomTaskId");
-
-                    b.HasIndex("MeshyTaskId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_meshy_task_remoteTaskId");
-
-                    b.ToTable("meshy_task", (string)null);
-                });
-
             modelBuilder.Entity("Viren.Repositories.Domains.Order", b =>
                 {
                     b.Property<Guid>("Id")
@@ -553,9 +457,6 @@ namespace Viren.Repositories.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
-
-                    b.Property<long?>("ExpiredAt")
-                        .HasColumnType("bigint");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier")
@@ -1041,17 +942,6 @@ namespace Viren.Repositories.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Viren.Repositories.Domains.MeshyTask", b =>
-                {
-                    b.HasOne("Viren.Repositories.Domains.FitRoomTask", "FitRoomTask")
-                        .WithOne()
-                        .HasForeignKey("Viren.Repositories.Domains.MeshyTask", "FitRoomTaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("FitRoomTask");
                 });
 
             modelBuilder.Entity("Viren.Repositories.Domains.Order", b =>

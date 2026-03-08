@@ -88,6 +88,20 @@ namespace Viren.API.Controllers
             return Ok(serviceResponse);
         }
 
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> UpdateOrderStatusAsync(
+            [FromRoute] Guid id,
+            [FromBody] UpdateOrderStatusRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var serviceResponse = await _orderService.UpdateOrderStatusAsync(id, request, cancellationToken);
+            if (!serviceResponse.Succeeded)
+            {
+                return BadRequest(serviceResponse);
+            }
+            return Ok(serviceResponse);
+        }
+
         [HttpPut("{id}/cancel")]
         public async Task<IActionResult> CancelOrderAsync(
             [FromRoute] Guid id,

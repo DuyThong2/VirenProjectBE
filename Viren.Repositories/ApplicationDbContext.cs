@@ -38,8 +38,8 @@ namespace Viren.Repositories
         public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
 
         public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
-
-
+        public DbSet<FitRoomTask> FitRoomTasks => Set<FitRoomTask>();
+        public DbSet<MeshyTask> FitRoomTaskResults => Set<MeshyTask>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
