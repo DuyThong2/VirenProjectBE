@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Viren.Repositories.Domains;
 using Viren.Repositories.Interfaces;
+using Viren.Repositories.Storage.Bucket;
 using Viren.Repositories.Utils;
 using Viren.Services.ApiResponse;
 using Viren.Services.Dtos.Requests;
@@ -17,18 +18,21 @@ public sealed class MeshyService : IMeshyService
 {
     private readonly HttpClient _httpClient;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IS3Storage _storage;
     private readonly IUser _currentUser;
     private readonly ILogger<MeshyService> _logger;
 
     public MeshyService(
         HttpClient httpClient,
         IUnitOfWork unitOfWork,
+        IS3Storage storage,
         IUser currentUser,
         ILogger<MeshyService> logger)
     {
         _httpClient = httpClient;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _storage = storage;
         _logger = logger;
     }
 
@@ -83,11 +87,22 @@ public sealed class MeshyService : IMeshyService
         }
 
         var repo = _unitOfWork.GetRepository<MeshyTask, Guid>();
+        var fitRoomRepo = _unitOfWork.GetRepository<FitRoomTask, Guid>();
+
+        var fitRoomTask = await fitRoomRepo.Query(asNoTracking: false)
+            .FirstOrDefaultAsync(x => x.FitRoomTaskId == request.FitRoomTaskId, cancellationToken);
+
+        if (fitRoomTask == null)
+        {
+            _logger.LogError("FitRoomTask with id {FitRoomTaskId} not found.", request.FitRoomTaskId);
+            throw new InvalidOperationException("FitRoomTask not found.");
+        }
+
 
         var entity = new MeshyTask
         {
             Id = Guid.NewGuid(),
-            FitRoomTaskId = request.FitRoomTaskId,
+            FitRoomTaskId = fitRoomTask.Id,
             MeshyTaskId = taskId,
             Status = "PENDING",
             Progress = 0,
@@ -107,16 +122,15 @@ public sealed class MeshyService : IMeshyService
         CancellationToken cancellationToken = default)
     {
         var response = await SendAsync(
-            HttpMethod.Get,
-            $"openapi/v1/image-to-3d/{meshyTaskId}",
-            null,
-            cancellationToken);
+        HttpMethod.Get,
+        $"openapi/v1/image-to-3d/{meshyTaskId}",
+        null,
+        cancellationToken);
 
         if (response.StatusCode < 200 || response.StatusCode >= 300)
             return response;
 
         var repo = _unitOfWork.GetRepository<MeshyTask, Guid>();
-
         var entity = await repo.Query(false)
             .FirstOrDefaultAsync(x => x.MeshyTaskId == meshyTaskId, cancellationToken);
 
@@ -146,7 +160,6 @@ public sealed class MeshyService : IMeshyService
                 && textures.GetArrayLength() > 0)
             {
                 var tex = textures[0];
-
                 entity.TextureBaseColorUrl = TryGetString(tex, "base_color");
                 entity.TextureMetallicUrl = TryGetString(tex, "metallic");
                 entity.TextureNormalUrl = TryGetString(tex, "normal");
@@ -157,7 +170,43 @@ public sealed class MeshyService : IMeshyService
             entity.LastSyncedAt = DateTime.UtcNow;
 
             if (entity.Status == "SUCCEEDED")
+            {
                 entity.CompletedAt = DateTime.UtcNow;
+
+                var rawGlbUrl = entity.ModelGlbUrl;
+                var alreadyStored = !string.IsNullOrWhiteSpace(rawGlbUrl)
+                                    && rawGlbUrl.StartsWith(_storage.PublicBaseUrl, StringComparison.OrdinalIgnoreCase);
+
+                if (!string.IsNullOrWhiteSpace(rawGlbUrl) && !alreadyStored)
+                {
+                    try
+                    {
+                        var uploaded = await _storage.Upload3DAsync(rawGlbUrl, cancellationToken);
+                        var stableGlbUrl = uploaded.FirstOrDefault() ?? rawGlbUrl;
+
+                        entity.ModelGlbUrl = stableGlbUrl;
+
+                        _logger.LogInformation(
+                            "Meshy task {MeshyTaskId} .glb uploaded to S3: {StableUrl}",
+                            meshyTaskId, stableGlbUrl);
+
+                        // Patch response JSON: thay model_urls.glb bằng S3 URL
+                        // để frontend nhận được stable URL ngay, không cần gọi lại API
+                        response = PatchGlbUrlInResponse(response, rawGlbUrl, stableGlbUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "Failed to upload Meshy .glb to S3 for taskId={MeshyTaskId}. Keeping raw URL.",
+                            meshyTaskId);
+                    }
+                }
+                else if (alreadyStored)
+                {
+                    // GLB đã được lưu S3 từ lần poll trước → patch response với stable URL luôn
+                    response = PatchGlbUrlInResponse(response, rawGlbUrl!, entity.ModelGlbUrl!);
+                }
+            }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
@@ -281,5 +330,23 @@ public sealed class MeshyService : IMeshyService
             return i;
 
         return null;
+    }
+
+    private static MeshyProxyResponse PatchGlbUrlInResponse(
+    MeshyProxyResponse response,
+    string oldGlbUrl,
+    string newGlbUrl)
+    {
+        if (string.IsNullOrWhiteSpace(oldGlbUrl) || string.IsNullOrWhiteSpace(newGlbUrl))
+            return response;
+
+        var patched = response.Content.Replace(oldGlbUrl, newGlbUrl, StringComparison.Ordinal);
+
+        return new MeshyProxyResponse
+        {
+            StatusCode = response.StatusCode,
+            ContentType = response.ContentType,
+            Content = patched
+        };
     }
 }

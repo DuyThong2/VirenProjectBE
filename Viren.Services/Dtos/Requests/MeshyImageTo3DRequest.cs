@@ -2,7 +2,7 @@
 
 public sealed class MeshyImageTo3DRequest
 {
-    public Guid FitRoomTaskId { get; set; }
+    public string FitRoomTaskId { get; set; } = string.Empty;
 
     public string ImageUrl { get; set; } = string.Empty;
 
